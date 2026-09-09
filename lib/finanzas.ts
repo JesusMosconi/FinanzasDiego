@@ -29,6 +29,7 @@ export type CrearTransferenciaInput = {
   monto: DecimalInput;
   concepto: string;
   periodoId: string;
+  fecha?: Date | string;
 };
 
 export type ValidarCuentaInput = {
@@ -277,7 +278,7 @@ export async function crearTransferencia(data: CrearTransferenciaInput) {
         cuenta_origen_id: data.cuentaOrigenId,
         cuenta_destino_id: data.cuentaDestinoId,
         periodo_id: data.periodoId,
-        fecha: new Date(),
+        fecha: data.fecha ?? new Date(),
         concepto: data.concepto,
         monto: data.monto,
         categoria: "TRANSFERENCIA",
@@ -322,11 +323,13 @@ export async function cerrarPeriodo(periodoId: string) {
         where: { periodo_id: periodoId },
         _sum: { monto_pagado: true },
       }),
+      // Un AJUSTE es una correccion aparte del gasto diario; no debe contarse en ambos lados del cierre de periodo.
       tx.movimiento.aggregate({
         where: {
           periodo_id: periodoId,
           cuenta_destino_id: null,
           cuenta_origen: { tipo: TipoCuenta.CAJA_DIARIA },
+          categoria: { not: "AJUSTE" },
         },
         _sum: { monto: true },
       }),
