@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TipoCuenta {
+  CAJA_DIARIA
+  RESIDUALES
+  COBRANZAS
+  ANTICIPO
+}
+
+enum EstadoObra {
+  ACTIVA
+  CERRADA
+}
+
+enum TipoCobranza {
+  MANO_OBRA
+  RESIDUAL
+  FAMILIA
+}
+
+enum EstadoTrabajoConfirmado {
+  EN_PROCESO
+  LISTO_PARA_ENTREGAR
+  CERTIFICADO_PARCIAL
+}
+
+model Periodo {
+  id              String          @id @default(cuid())
+  anio            Int
+  mes             Int
+  cerrado         Boolean         @default(false)
+  fecha_cierre    DateTime?
+  diferencia      Decimal?
+  periodo_cuentas PeriodoCuenta[]
+  movimientos     Movimiento[]
+  cobranzas       Cobranza[]
+  gastos_fijos    GastoFijo[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model PeriodoCuenta {
+  id            String   @id @default(cuid())
+  periodo_id    String
+  cuenta_id     String
+  saldo_inicial Decimal
+  saldo_final   Decimal?
+  periodo       Periodo  @relation(fields: [periodo_id], references: [id])
+  cuenta        Cuenta   @relation(fields: [cuenta_id], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Cuenta {
+  id                  String          @id @default(cuid())
+  tipo                TipoCuenta
+  obra_id             String?
+  saldo_actual        Decimal
+  obra                Obra?           @relation(fields: [obra_id], references: [id])
+  movimientos_origen  Movimiento[]    @relation("CuentaOrigen")
+  movimientos_destino Movimiento[]    @relation("CuentaDestino")
+  periodo_cuentas     PeriodoCuenta[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+model Obra {
+  id          String     @id @default(cuid())
+  cliente     String
+  descripcion String
+  estado      EstadoObra
+  cuentas     Cuenta[]
+  cobranzas   Cobranza[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Movimiento {
+  id                String   @id @default(cuid())
+  cuenta_origen_id  String
+  cuenta_destino_id String?
+  periodo_id        String
+  fecha             DateTime
+  concepto          String
+  monto             Decimal
+  categoria         String
+  observaciones     String?
+  cuenta_origen     Cuenta   @relation("CuentaOrigen", fields: [cuenta_origen_id], references: [id])
+  cuenta_destino    Cuenta?  @relation("CuentaDestino", fields: [cuenta_destino_id], references: [id])
+  periodo           Periodo  @relation(fields: [periodo_id], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Cobranza {
+  id         String       @id @default(cuid())
+  obra_id    String?
+  periodo_id String
+  fecha      DateTime
+  concepto   String
+  monto      Decimal
+  tipo       TipoCobranza
+  obra       Obra?        @relation(fields: [obra_id], references: [id])
+  periodo    Periodo      @relation(fields: [periodo_id], references: [id])
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model GastoFijo {
+  id           String    @id @default(cuid())
+  grupo        String
+  obligacion   String
+  monto_total  Decimal
+  monto_pagado Decimal   @default(0)
+  vence_dia    Int
+  fecha_pago   DateTime?
+  periodo_id   String
+  pagado       Boolean   @default(false)
+  periodo      Periodo   @relation(fields: [periodo_id], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model TrabajoConfirmado {
+  id                String                  @id @default(cuid())
+  numero_cotizacion String
+  descripcion       String
+  monto_neto        Decimal
+  estado            EstadoTrabajoConfirmado
+  observaciones     String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+}
