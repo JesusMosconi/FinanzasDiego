@@ -13,6 +13,7 @@ type DecimalInput = Prisma.MovimientoUncheckedCreateInput["monto"];
 export type CrearMovimientoInput = {
   cuentaOrigenId: string;
   cuentaDestinoId?: string | null;
+  gastoFijoId?: string | null;
   periodoId: string;
   fecha: Date | string;
   concepto: string;
@@ -22,6 +23,16 @@ export type CrearMovimientoInput = {
 };
 
 export type EditarMovimientoInput = Partial<CrearMovimientoInput>;
+
+export type PagarGastoFijoInput = {
+  gastoFijoId: string;
+  cuentaOrigenId: string;
+  periodoId: string;
+  monto: DecimalInput;
+  fecha?: Date | string;
+  concepto?: string;
+  observaciones?: string | null;
+};
 
 export type CrearTransferenciaInput = {
   cuentaOrigenId: string;
@@ -79,6 +90,18 @@ async function recalcularCuentas(
   );
 }
 
+async function sumarMovimientosGastoFijo(
+  tx: TransactionClient,
+  gastoFijoId: string,
+) {
+  const movimientos = await tx.movimiento.aggregate({
+    where: { gasto_fijo_id: gastoFijoId },
+    _sum: { monto: true },
+  });
+
+  return movimientos._sum.monto ?? new Prisma.Decimal(0);
+}
+
 async function validarPeriodoCuentaConCliente(
   tx: TransactionClient,
   cuentaId: string,
@@ -101,6 +124,12 @@ async function validarPeriodoCuentaConCliente(
 
 export async function calcularSaldoCuenta(cuentaId: string) {
   return prisma.$transaction((tx) => recalcularSaldoCuenta(tx, cuentaId));
+}
+
+export async function calcularMontoPagadoGastoFijo(gastoFijoId: string) {
+  return prisma.$transaction((tx) =>
+    sumarMovimientosGastoFijo(tx, gastoFijoId),
+  );
 }
 
 export function validarCuenta({ tipo, obraId }: ValidarCuentaInput) {
@@ -200,6 +229,7 @@ export async function crearMovimiento(data: CrearMovimientoInput) {
       data: {
         cuenta_origen_id: data.cuentaOrigenId,
         cuenta_destino_id: data.cuentaDestinoId ?? null,
+        gasto_fijo_id: data.gastoFijoId ?? null,
         periodo_id: data.periodoId,
         fecha: data.fecha,
         concepto: data.concepto,
@@ -232,6 +262,7 @@ export async function editarMovimiento(
       data: {
         cuenta_origen_id: data.cuentaOrigenId,
         cuenta_destino_id: data.cuentaDestinoId,
+        gasto_fijo_id: data.gastoFijoId,
         periodo_id: data.periodoId,
         fecha: data.fecha,
         concepto: data.concepto,
@@ -247,6 +278,46 @@ export async function editarMovimiento(
       movimiento.cuenta_origen_id,
       movimiento.cuenta_destino_id,
     ]);
+
+    return movimiento;
+  });
+}
+
+export async function pagarGastoFijo(data: PagarGastoFijoInput) {
+  return prisma.$transaction(async (tx) => {
+    const gastoFijo = await tx.gastoFijo.findUniqueOrThrow({
+      where: { id: data.gastoFijoId },
+      select: {
+        obligacion: true,
+        monto_total: true,
+        fecha_pago: true,
+      },
+    });
+    const fecha = data.fecha ?? new Date();
+    const movimiento = await tx.movimiento.create({
+      data: {
+        cuenta_origen_id: data.cuentaOrigenId,
+        cuenta_destino_id: null,
+        gasto_fijo_id: data.gastoFijoId,
+        periodo_id: data.periodoId,
+        fecha,
+        concepto: data.concepto ?? `Pago de ${gastoFijo.obligacion}`,
+        monto: data.monto,
+        categoria: "GASTO_FIJO",
+        observaciones: data.observaciones ?? null,
+      },
+    });
+
+    await recalcularCuentas(tx, [data.cuentaOrigenId]);
+
+    const montoPagado = await sumarMovimientosGastoFijo(tx, data.gastoFijoId);
+    await tx.gastoFijo.update({
+      where: { id: data.gastoFijoId },
+      data: {
+        pagado: montoPagado.greaterThanOrEqualTo(gastoFijo.monto_total),
+        fecha_pago: gastoFijo.fecha_pago ?? fecha,
+      },
+    });
 
     return movimiento;
   });
@@ -319,9 +390,9 @@ export async function cerrarPeriodo(periodoId: string) {
         where: { periodo_id: periodoId },
         _sum: { monto: true },
       }),
-      tx.gastoFijo.aggregate({
-        where: { periodo_id: periodoId },
-        _sum: { monto_pagado: true },
+      tx.movimiento.aggregate({
+        where: { gasto_fijo: { periodo_id: periodoId } },
+        _sum: { monto: true },
       }),
       // Un AJUSTE es una correccion aparte del gasto diario; no debe contarse en ambos lados del cierre de periodo.
       tx.movimiento.aggregate({
@@ -341,7 +412,7 @@ export async function cerrarPeriodo(periodoId: string) {
 
     const cero = new Prisma.Decimal(0);
     const diferencia = (cobranzas._sum.monto ?? cero)
-      .minus(gastosFijos._sum.monto_pagado ?? cero)
+      .minus(gastosFijos._sum.monto ?? cero)
       .minus(gastosDiarios._sum.monto ?? cero)
       .minus(ajustes._sum.monto ?? cero);
 

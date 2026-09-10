@@ -5,6 +5,7 @@ import {
   crearMovimiento,
   crearPeriodoCuenta,
   crearTransferencia,
+  pagarGastoFijo,
 } from "../lib/finanzas";
 import { prisma } from "../lib/prisma";
 
@@ -49,15 +50,21 @@ async function main() {
     },
   });
 
-  await prisma.gastoFijo.create({
+  const gastoFijo = await prisma.gastoFijo.create({
     data: {
       grupo: "Servicios",
       obligacion: "Electricidad de prueba",
       monto_total: new Prisma.Decimal(500),
-      monto_pagado: new Prisma.Decimal(300),
       vence_dia: 10,
       periodo_id: periodo.id,
     },
+  });
+
+  await pagarGastoFijo({
+    gastoFijoId: gastoFijo.id,
+    cuentaOrigenId: cajaDiaria.id,
+    periodoId: periodo.id,
+    monto: new Prisma.Decimal(300),
   });
 
   await crearMovimiento({

@@ -83,20 +83,22 @@ model Obra {
 }
 
 model Movimiento {
-  id                String   @id @default(cuid())
+  id                String     @id @default(cuid())
   cuenta_origen_id  String
   cuenta_destino_id String?
+  gasto_fijo_id     String?
   periodo_id        String
   fecha             DateTime
   concepto          String
   monto             Decimal
   categoria         String
   observaciones     String?
-  cuenta_origen     Cuenta   @relation("CuentaOrigen", fields: [cuenta_origen_id], references: [id])
-  cuenta_destino    Cuenta?  @relation("CuentaDestino", fields: [cuenta_destino_id], references: [id])
-  periodo           Periodo  @relation(fields: [periodo_id], references: [id])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  cuenta_origen     Cuenta     @relation("CuentaOrigen", fields: [cuenta_origen_id], references: [id])
+  cuenta_destino    Cuenta?    @relation("CuentaDestino", fields: [cuenta_destino_id], references: [id])
+  gasto_fijo        GastoFijo? @relation(fields: [gasto_fijo_id], references: [id])
+  periodo           Periodo    @relation(fields: [periodo_id], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 model Cobranza {
@@ -114,18 +116,18 @@ model Cobranza {
 }
 
 model GastoFijo {
-  id           String    @id @default(cuid())
-  grupo        String
-  obligacion   String
-  monto_total  Decimal
-  monto_pagado Decimal   @default(0)
-  vence_dia    Int
-  fecha_pago   DateTime?
-  periodo_id   String
-  pagado       Boolean   @default(false)
-  periodo      Periodo   @relation(fields: [periodo_id], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String       @id @default(cuid())
+  grupo       String
+  obligacion  String
+  monto_total Decimal
+  vence_dia   Int
+  fecha_pago  DateTime?
+  periodo_id  String
+  pagado      Boolean      @default(false)
+  periodo     Periodo      @relation(fields: [periodo_id], references: [id])
+  movimientos Movimiento[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model TrabajoConfirmado {
