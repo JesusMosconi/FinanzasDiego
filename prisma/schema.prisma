@@ -84,7 +84,7 @@ model Obra {
 
 model Movimiento {
   id                String     @id @default(cuid())
-  cuenta_origen_id  String
+  cuenta_origen_id  String?
   cuenta_destino_id String?
   gasto_fijo_id     String?
   periodo_id        String
@@ -93,7 +93,7 @@ model Movimiento {
   monto             Decimal
   categoria         String
   observaciones     String?
-  cuenta_origen     Cuenta     @relation("CuentaOrigen", fields: [cuenta_origen_id], references: [id])
+  cuenta_origen     Cuenta?    @relation("CuentaOrigen", fields: [cuenta_origen_id], references: [id])
   cuenta_destino    Cuenta?    @relation("CuentaDestino", fields: [cuenta_destino_id], references: [id])
   gasto_fijo        GastoFijo? @relation(fields: [gasto_fijo_id], references: [id])
   periodo           Periodo    @relation(fields: [periodo_id], references: [id])

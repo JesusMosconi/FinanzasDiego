@@ -1,4 +1,4 @@
-import { EstadoObra, Prisma, TipoCuenta } from "@prisma/client";
+import { EstadoObra, Prisma, TipoCobranza, TipoCuenta } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -11,7 +11,7 @@ type TransactionClient = Prisma.TransactionClient;
 type DecimalInput = Prisma.MovimientoUncheckedCreateInput["monto"];
 
 export type CrearMovimientoInput = {
-  cuentaOrigenId: string;
+  cuentaOrigenId?: string | null;
   cuentaDestinoId?: string | null;
   gastoFijoId?: string | null;
   periodoId: string;
@@ -20,6 +20,20 @@ export type CrearMovimientoInput = {
   monto: DecimalInput;
   categoria: string;
   observaciones?: string | null;
+};
+
+export type CrearIngresoInput = {
+  cuentaDestinoId: string;
+  periodoId: string;
+  monto: DecimalInput;
+  concepto: string;
+  fecha?: Date | string;
+  categoria?: string;
+  observaciones?: string | null;
+  cobranza?: {
+    tipo: TipoCobranza;
+    obraId?: string | null;
+  };
 };
 
 export type EditarMovimientoInput = Partial<CrearMovimientoInput>;
@@ -32,6 +46,14 @@ export type PagarGastoFijoInput = {
   fecha?: Date | string;
   concepto?: string;
   observaciones?: string | null;
+};
+
+export type CrearGastoFijoInput = {
+  grupo: string;
+  obligacion: string;
+  montoTotal: DecimalInput;
+  venceDia: number;
+  periodoId: string;
 };
 
 export type CrearTransferenciaInput = {
@@ -132,6 +154,22 @@ export async function calcularMontoPagadoGastoFijo(gastoFijoId: string) {
   );
 }
 
+export async function crearGastoFijo(data: CrearGastoFijoInput) {
+  return prisma.gastoFijo.create({
+    data: {
+      grupo: data.grupo,
+      obligacion: data.obligacion,
+      monto_total: data.montoTotal,
+      vence_dia: data.venceDia,
+      periodo_id: data.periodoId,
+    },
+  });
+}
+
+export async function borrarGastoFijo(gastoFijoId: string) {
+  return prisma.gastoFijo.delete({ where: { id: gastoFijoId } });
+}
+
 export function validarCuenta({ tipo, obraId }: ValidarCuentaInput) {
   if (obraId && tipo !== TipoCuenta.ANTICIPO) {
     throw new Error(
@@ -227,7 +265,7 @@ export async function crearMovimiento(data: CrearMovimientoInput) {
   return prisma.$transaction(async (tx) => {
     const movimiento = await tx.movimiento.create({
       data: {
-        cuenta_origen_id: data.cuentaOrigenId,
+        cuenta_origen_id: data.cuentaOrigenId ?? null,
         cuenta_destino_id: data.cuentaDestinoId ?? null,
         gasto_fijo_id: data.gastoFijoId ?? null,
         periodo_id: data.periodoId,
@@ -245,6 +283,52 @@ export async function crearMovimiento(data: CrearMovimientoInput) {
     ]);
 
     return movimiento;
+  });
+}
+
+export async function crearIngreso(data: CrearIngresoInput) {
+  return prisma.$transaction(async (tx) => {
+    const cuentaDestino = await tx.cuenta.findUniqueOrThrow({
+      where: { id: data.cuentaDestinoId },
+      select: { tipo: true },
+    });
+    const esCobranza = cuentaDestino.tipo === TipoCuenta.COBRANZAS;
+
+    if (esCobranza && !data.cobranza) {
+      throw new Error("Un ingreso a Cobranzas requiere indicar su tipo.");
+    }
+    if (!esCobranza && data.cobranza) {
+      throw new Error("Solo los ingresos a Cobranzas generan una cobranza.");
+    }
+
+    const fecha = data.fecha ?? new Date();
+    const movimiento = await tx.movimiento.create({
+      data: {
+        cuenta_origen_id: null,
+        cuenta_destino_id: data.cuentaDestinoId,
+        periodo_id: data.periodoId,
+        fecha,
+        concepto: data.concepto,
+        monto: data.monto,
+        categoria: data.categoria ?? "INGRESO",
+        observaciones: data.observaciones ?? null,
+      },
+    });
+    const cobranza = esCobranza
+      ? await tx.cobranza.create({
+          data: {
+            obra_id: data.cobranza?.obraId ?? null,
+            periodo_id: data.periodoId,
+            fecha,
+            concepto: data.concepto,
+            monto: data.monto,
+            tipo: data.cobranza!.tipo,
+          },
+        })
+      : null;
+
+    await recalcularCuentas(tx, [data.cuentaDestinoId]);
+    return { movimiento, cobranza };
   });
 }
 
