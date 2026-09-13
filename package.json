@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

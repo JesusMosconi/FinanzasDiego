@@ -10,7 +10,7 @@ Esqueleto de una aplicacion Next.js con App Router, TypeScript, Tailwind CSS y P
    npm install
    ```
 
-2. Copiar las variables de entorno y completar `DATABASE_URL` con la URL de PostgreSQL de Neon:
+2. Copiar las variables de entorno y completar `DATABASE_URL` con la URL pooled de PostgreSQL de Neon y `DIRECT_URL` con la URL directa, sin pooler:
 
    ```bash
    cp .env.example .env
@@ -46,4 +46,4 @@ La aplicacion queda disponible en [http://localhost:3000](http://localhost:3000)
 
 ## Deploy
 
-El proyecto puede desplegarse directamente en Vercel. Configurar `DATABASE_URL` en las variables de entorno del proyecto antes del deploy.
+El proyecto puede desplegarse directamente en Vercel. Antes del deploy, configurar `DATABASE_URL`, `DIRECT_URL`, `PIN_HASH` y `JWT_SECRET` como Environment Variables del proyecto para los entornos Production y Preview.
