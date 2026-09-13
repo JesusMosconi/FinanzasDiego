@@ -399,12 +399,12 @@ function PaymentDialog({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#213145]/60 p-4 backdrop-blur-sm"
+      className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-[#213145]/60 p-4 backdrop-blur-sm"
       role="dialog"
     >
       <form
         action={action}
-        className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-[#f8f9ff] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl"
+        className="app-modal-panel max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-[#f8f9ff] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl"
         noValidate
         onSubmit={(event) => {
           const data = new FormData(event.currentTarget);
@@ -530,12 +530,12 @@ function CreateDialog({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#213145]/60 p-4 backdrop-blur-sm"
+      className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-[#213145]/60 p-4 backdrop-blur-sm"
       role="dialog"
     >
       <form
         action={action}
-        className="w-full max-w-md space-y-4 rounded-2xl bg-[#f8f9ff] p-4 shadow-2xl"
+        className="app-modal-panel w-full max-w-md space-y-4 rounded-2xl bg-[#f8f9ff] p-4 shadow-2xl"
         noValidate
         onSubmit={(event) => {
           const data = new FormData(event.currentTarget);

@@ -30,3 +30,64 @@ textarea:disabled {
 ::-webkit-scrollbar {
   display: none;
 }
+
+@keyframes select-dialog-backdrop-in {
+  from {
+    background-color: rgb(33 49 69 / 0%);
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes select-dialog-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.select-dialog-backdrop {
+  animation: select-dialog-backdrop-in 180ms ease-out both;
+}
+
+.select-dialog-panel {
+  animation: select-dialog-sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: bottom center;
+}
+
+@keyframes app-modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+.app-modal-backdrop {
+  animation: select-dialog-backdrop-in 180ms ease-out both;
+}
+
+.app-modal-panel {
+  animation: app-modal-panel-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center;
+}
+
+@media (min-width: 640px) {
+  @keyframes select-dialog-sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+  }
+
+  .select-dialog-panel {
+    transform-origin: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-dialog-backdrop,
+  .select-dialog-panel,
+  .app-modal-backdrop,
+  .app-modal-panel {
+    animation-duration: 1ms;
+  }
+}

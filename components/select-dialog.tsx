@@ -72,7 +72,7 @@ export function SelectDialog({
 
       {open ? (
         <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-[#213145]/60 backdrop-blur-sm sm:items-center sm:p-4"
+          className="select-dialog-backdrop fixed inset-0 z-[90] flex items-end justify-center bg-[#213145]/60 backdrop-blur-sm sm:items-center sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) close();
           }}
@@ -80,7 +80,7 @@ export function SelectDialog({
           <section
             aria-labelledby={titleId}
             aria-modal="true"
-            className="max-h-[78dvh] w-full overflow-hidden rounded-t-3xl bg-[#f8f9ff] shadow-2xl sm:max-w-sm sm:rounded-2xl"
+            className="select-dialog-panel max-h-[78dvh] w-full overflow-hidden rounded-t-3xl bg-[#f8f9ff] shadow-2xl sm:max-w-sm sm:rounded-2xl"
             role="dialog"
           >
             <div className="sticky top-0 z-10 bg-[#f8f9ff] px-4 pb-3 pt-2 sm:pt-4">

@@ -23,10 +23,10 @@ export function ConfirmDialog({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-[#213145]/60 p-4 backdrop-blur-sm"
+      className="app-modal-backdrop fixed inset-0 z-[80] flex items-center justify-center bg-[#213145]/60 p-4 backdrop-blur-sm"
       role="alertdialog"
     >
-      <section className="w-full max-w-sm space-y-4 rounded-2xl bg-[#f8f9ff] p-5 shadow-2xl">
+      <section className="app-modal-panel w-full max-w-sm space-y-4 rounded-2xl bg-[#f8f9ff] p-5 shadow-2xl">
         <div>
           <h2 className="text-lg font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-[#45464d]">{description}</p>
