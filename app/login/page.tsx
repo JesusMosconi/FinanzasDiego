@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/components/login-form";
@@ -12,13 +13,24 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-12">
-      <section className="w-full max-w-sm">
-        <div className="mb-8">
-          <p className="mb-2 text-sm font-medium text-zinc-500">
-            Finanzas Taller
+    <main className="flex min-h-dvh items-center justify-center bg-[#f8f9ff] px-4 py-8 text-[#0b1c30]">
+      <section className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-[0_12px_40px_rgba(11,28,48,0.10)]">
+        <div className="mb-6 text-center">
+          <Image
+            alt="Logo de FinanzasDiego"
+            className="mx-auto mb-3 h-16 w-16 rounded-full"
+            height={64}
+            priority
+            src="/icon.png"
+            width={64}
+          />
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#00714d]">
+            FinanzasDiego
           </p>
-          <h1 className="text-3xl font-semibold text-zinc-950">Ingresar</h1>
+          <h1 className="mt-1 text-2xl font-bold">Bienvenido</h1>
+          <p className="mt-1 text-sm text-[#45464d]">
+            Ingresá tu PIN para acceder a tus finanzas.
+          </p>
         </div>
         <LoginForm />
       </section>

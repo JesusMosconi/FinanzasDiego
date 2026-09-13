@@ -8,7 +8,6 @@ import {
   crearIngreso,
   crearMovimiento,
   crearTransferencia,
-  pagarGastoFijo,
 } from "@/lib/finanzas";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +17,30 @@ export type NuevoRegistroState = { ok: boolean; message: string };
 async function hasSession() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   return Boolean(token && (await verifySessionToken(token)));
+}
+
+function fechaConHoraReal(dateValue: string) {
+  const ahora = new Date();
+  if (!dateValue) return ahora;
+
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(ahora);
+  const valor = (tipo: Intl.DateTimeFormatPartTypes) =>
+    partes.find((parte) => parte.type === tipo)?.value ?? "00";
+  const hoy = `${valor("year")}-${valor("month")}-${valor("day")}`;
+
+  if (dateValue === hoy) return ahora;
+  return new Date(
+    `${dateValue}T${valor("hour")}:${valor("minute")}:${valor("second")}-03:00`,
+  );
 }
 
 export async function guardarNuevoRegistro(
@@ -33,7 +56,7 @@ export async function guardarNuevoRegistro(
   const observations =
     String(formData.get("observaciones") ?? "").trim() || null;
   const dateValue = String(formData.get("fecha") ?? "");
-  const date = dateValue ? new Date(`${dateValue}T12:00:00`) : new Date();
+  const date = fechaConHoraReal(dateValue);
 
   if (!periodId || !concept || !Number.isFinite(amount) || amount <= 0) {
     return { ok: false, message: "Completá monto y concepto." };
@@ -93,28 +116,15 @@ export async function guardarNuevoRegistro(
       });
     } else if (operation === "egreso") {
       const originId = String(formData.get("cuentaOrigenId") ?? "");
-      const fixedExpenseId = String(formData.get("gastoFijoId") ?? "");
-      if (fixedExpenseId) {
-        await pagarGastoFijo({
-          gastoFijoId: fixedExpenseId,
-          cuentaOrigenId: originId,
-          periodoId: periodId,
-          monto: amount,
-          fecha: date,
-          concepto: concept,
-          observaciones: observations,
-        });
-      } else {
-        await crearMovimiento({
-          cuentaOrigenId: originId,
-          periodoId: periodId,
-          monto: amount,
-          concepto: concept,
-          fecha: date,
-          categoria: String(formData.get("categoria") ?? "OTROS"),
-          observaciones: observations,
-        });
-      }
+      await crearMovimiento({
+        cuentaOrigenId: originId,
+        periodoId: periodId,
+        monto: amount,
+        concepto: concept,
+        fecha: date,
+        categoria: "EGRESO",
+        observaciones: observations,
+      });
     } else {
       return { ok: false, message: "Elegí el tipo de registro." };
     }

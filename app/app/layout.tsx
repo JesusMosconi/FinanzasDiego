@@ -4,7 +4,10 @@ import {
   type ModalAccount,
   NuevoMovimientoProvider,
 } from "@/components/nuevo-movimiento";
+import { InstallAppBanner } from "@/components/install-app-banner";
+import { ToastProvider } from "@/components/toast-provider";
 import { prisma } from "@/lib/prisma";
+import { obtenerPeriodoOperativo } from "@/lib/periodos";
 
 export const dynamic = "force-dynamic";
 
@@ -20,20 +23,8 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const today = new Date();
-  const parts = new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "numeric",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).formatToParts(today);
-  const year = Number(parts.find((part) => part.type === "year")?.value);
-  const month = Number(parts.find((part) => part.type === "month")?.value);
-  const period =
-    (await prisma.periodo.findFirst({ where: { anio: year, mes: month } })) ??
-    (await prisma.periodo.findFirst({
-      orderBy: [{ anio: "desc" }, { mes: "desc" }],
-    }));
-  const [accounts, works, fixedExpenses] = await Promise.all([
+  const period = await obtenerPeriodoOperativo();
+  const [accounts, works] = await Promise.all([
     prisma.cuenta.findMany({
       where: {
         OR: [
@@ -56,13 +47,6 @@ export default async function AppLayout({
       select: { id: true, cliente: true, descripcion: true },
       orderBy: { cliente: "asc" },
     }),
-    period
-      ? prisma.gastoFijo.findMany({
-          where: { periodo_id: period.id, pagado: false },
-          select: { id: true, obligacion: true },
-          orderBy: { obligacion: "asc" },
-        })
-      : [],
   ]);
 
   const modalAccounts: ModalAccount[] = accounts.map((account) => ({
@@ -71,7 +55,8 @@ export default async function AppLayout({
     type: account.tipo,
   }));
   return (
-    <NuevoMovimientoProvider
+    <ToastProvider>
+      <NuevoMovimientoProvider
       options={{
         periodId: period?.id ?? null,
         accounts: modalAccounts,
@@ -79,13 +64,11 @@ export default async function AppLayout({
           id: work.id,
           name: `${work.cliente} · ${work.descripcion}`,
         })),
-        fixedExpenses: fixedExpenses.map((expense) => ({
-          id: expense.id,
-          name: expense.obligacion,
-        })),
       }}
-    >
-      {children}
-    </NuevoMovimientoProvider>
+      >
+        {children}
+        <InstallAppBanner />
+      </NuevoMovimientoProvider>
+    </ToastProvider>
   );
 }

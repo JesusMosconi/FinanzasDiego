@@ -1,11 +1,18 @@
 "use client";
 
-import { createContext, useActionState, useContext, useState } from "react";
+import {
+  createContext,
+  useActionState,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 import {
   guardarNuevoRegistro,
   type NuevoRegistroState,
 } from "@/app/app/nuevo-registro-actions";
+import { useToast } from "@/components/toast-provider";
 
 export type ModalAccount = {
   id: string;
@@ -17,7 +24,6 @@ type ModalOptions = {
   periodId: string | null;
   accounts: ModalAccount[];
   works: { id: string; name: string }[];
-  fixedExpenses: { id: string; name: string }[];
 };
 
 const ModalContext = createContext<(() => void) | null>(null);
@@ -49,12 +55,22 @@ export function NuevoMovimientoTrigger() {
   return (
     <button
       aria-label="Agregar nuevo registro"
-      className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00714d] text-2xl text-white shadow-lg transition active:scale-95 disabled:opacity-50"
+      className="flex h-14 w-14 items-center justify-center rounded-full bg-[#00714d] text-white shadow-lg transition active:scale-95 disabled:opacity-50"
       disabled={!open}
       onClick={() => open?.()}
       type="button"
     >
-      +
+      <svg
+        aria-hidden="true"
+        className="h-7 w-7"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2.4"
+        viewBox="0 0 24 24"
+      >
+        <path d="M12 5v14M5 12h14" />
+      </svg>
     </button>
   );
 }
@@ -69,13 +85,19 @@ function NuevoMovimientoDialog({
   const [operation, setOperation] = useState<"ingreso" | "egreso" | "pase">(
     "egreso",
   );
+  const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
-  const [fixedExpenseId, setFixedExpenseId] = useState("");
   const [collectionType, setCollectionType] = useState("MANO_OBRA");
+  const [clientError, setClientError] = useState("");
   const [state, action, pending] = useActionState(
     guardarNuevoRegistro,
     initialState,
   );
+  const showToast = useToast();
+
+  useEffect(() => {
+    if (state.ok && state.message) showToast(state.message);
+  }, [showToast, state]);
   const destination = options.accounts.find(
     (account) => account.id === destinationId,
   );
@@ -89,7 +111,30 @@ function NuevoMovimientoDialog({
     >
       <form
         action={action}
-        className="max-h-[92dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-[#f8f9ff] p-4 shadow-2xl"
+        className="h-[min(720px,92dvh)] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-[#f8f9ff] p-4 shadow-2xl"
+        noValidate
+        onSubmit={(event) => {
+          const data = new FormData(event.currentTarget);
+          const amount = Number(data.get("monto"));
+          const concept = String(data.get("concepto") ?? "").trim();
+          const origin = String(data.get("cuentaOrigenId") ?? "");
+          const destination = String(data.get("cuentaDestinoId") ?? "");
+          let error = "";
+          if (!Number.isFinite(amount) || amount <= 0)
+            error = "Ingresá un monto mayor a cero.";
+          else if (!data.get("fecha")) error = "Seleccioná una fecha.";
+          else if (!concept) error = "Completá el concepto.";
+          else if (operation !== "ingreso" && !origin)
+            error = "Seleccioná la caja de origen.";
+          else if (operation !== "egreso" && !destination)
+            error = "Seleccioná la caja de destino.";
+          else if (operation === "pase" && origin === destination)
+            error = "Las cajas de origen y destino deben ser distintas.";
+          if (error) {
+            event.preventDefault();
+            setClientError(error);
+          } else setClientError("");
+        }}
       >
         <input name="periodoId" type="hidden" value={options.periodId ?? ""} />
         <input name="operacion" type="hidden" value={operation} />
@@ -171,14 +216,16 @@ function NuevoMovimientoDialog({
         </label>
 
         {operation !== "ingreso" ? (
-          <AccountSelect
+          <CategoryAccountSelect
             label="Caja de origen"
             name="cuentaOrigenId"
             accounts={options.accounts}
+            value={originId}
+            onChange={setOriginId}
           />
         ) : null}
         {operation !== "egreso" ? (
-          <AccountSelect
+          <CategoryAccountSelect
             label={
               operation === "ingreso" ? "Caja donde entra" : "Caja de destino"
             }
@@ -223,39 +270,6 @@ function NuevoMovimientoDialog({
           </div>
         ) : null}
 
-        {operation === "egreso" ? (
-          <div className="space-y-3">
-            <label className="block text-xs font-semibold">
-              Categoría
-              <select
-                className="mt-1 h-11 w-full rounded-xl bg-white px-3"
-                name="categoria"
-              >
-                <option value="INSUMOS">Insumos</option>
-                <option value="COMBUSTIBLE">Combustible</option>
-                <option value="AJUSTE">Ajuste</option>
-                <option value="OTROS">Otros</option>
-              </select>
-            </label>
-            <label className="block text-xs font-semibold">
-              Imputar a Fijos (opcional)
-              <select
-                className="mt-1 h-11 w-full rounded-xl bg-white px-3"
-                name="gastoFijoId"
-                onChange={(event) => setFixedExpenseId(event.target.value)}
-                value={fixedExpenseId}
-              >
-                <option value="">No es un pago fijo</option>
-                {options.fixedExpenses.map((expense) => (
-                  <option key={expense.id} value={expense.id}>
-                    {expense.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        ) : null}
-
         <label className="block text-xs font-semibold">
           Observaciones (opcional)
           <textarea
@@ -263,12 +277,12 @@ function NuevoMovimientoDialog({
             name="observaciones"
           />
         </label>
-        {state.message ? (
+        {clientError || state.message ? (
           <p
             aria-live="polite"
-            className={`rounded-lg px-3 py-2 text-xs font-semibold ${state.ok ? "bg-[#6cf8bb]/45 text-[#005236]" : "bg-[#ffdad6] text-[#93000a]"}`}
+            className={`rounded-lg px-3 py-2 text-xs font-semibold ${!clientError && state.ok ? "bg-[#6cf8bb]/45 text-[#005236]" : "bg-[#ffdad6] text-[#93000a]"}`}
           >
-            {state.message}
+            {clientError || state.message}
           </p>
         ) : null}
         <div className="flex gap-2">
@@ -292,7 +306,7 @@ function NuevoMovimientoDialog({
   );
 }
 
-function AccountSelect({
+function CategoryAccountSelect({
   label,
   name,
   accounts,
@@ -302,28 +316,66 @@ function AccountSelect({
   label: string;
   name: string;
   accounts: ModalAccount[];
-  value?: string;
-  onChange?: (value: string) => void;
+  value: string;
+  onChange: (value: string) => void;
 }) {
+  const selected = accounts.find((account) => account.id === value);
+  const [category, setCategory] = useState(selected?.type ?? "");
+  const categories = [
+    ["CAJA_DIARIA", "Diarios"],
+    ["RESIDUALES", "Residuales"],
+    ["COBRANZAS", "Cobranzas"],
+    ["ANTICIPO", "Anticipo"],
+  ] as const;
+  const advances = accounts.filter((account) => account.type === "ANTICIPO");
+
   return (
-    <label className="block text-xs font-semibold">
-      {label}
-      <select
-        className="mt-1 h-11 w-full rounded-xl bg-white px-3"
-        name={name}
-        onChange={
-          onChange ? (event) => onChange(event.target.value) : undefined
-        }
-        required
-        value={value}
-      >
-        <option value="">Seleccionar caja</option>
-        {accounts.map((account) => (
-          <option key={account.id} value={account.id}>
-            {account.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="space-y-2">
+      <label className="block text-xs font-semibold">
+        {label}
+        <select
+          className="mt-1 h-11 w-full rounded-xl bg-white px-3"
+          onChange={(event) => {
+            const type = event.target.value;
+            setCategory(type);
+            onChange(
+              type === "ANTICIPO"
+                ? ""
+                : (accounts.find((account) => account.type === type)?.id ?? ""),
+            );
+          }}
+          value={category}
+        >
+          <option value="">Seleccionar caja</option>
+          {categories.map(([type, categoryLabel]) => (
+            <option
+              disabled={!accounts.some((account) => account.type === type)}
+              key={type}
+              value={type}
+            >
+              {categoryLabel}
+            </option>
+          ))}
+        </select>
+      </label>
+      {category === "ANTICIPO" ? (
+        <label className="block text-xs font-semibold">
+          Anticipo activo
+          <select
+            className="mt-1 h-11 w-full rounded-xl bg-white px-3"
+            onChange={(event) => onChange(event.target.value)}
+            value={value}
+          >
+            <option value="">Seleccionar anticipo</option>
+            {advances.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name.replace(/^Anticipo · /, "")}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <input name={name} type="hidden" value={value} />
+    </div>
   );
 }

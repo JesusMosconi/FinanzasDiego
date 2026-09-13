@@ -18,7 +18,13 @@ export async function crearGastoFijoAction(
   formData: FormData,
 ): Promise<ActionState> {
   const periodoId = String(formData.get("periodoId") ?? "");
-  const grupo = String(formData.get("grupo") ?? "").trim();
+  const grupoPredefinido = String(
+    formData.get("grupoPredefinido") ?? "",
+  ).trim();
+  const grupo =
+    grupoPredefinido === "OTRO"
+      ? String(formData.get("grupo") ?? "").trim()
+      : grupoPredefinido;
   const obligacion = String(formData.get("obligacion") ?? "").trim();
   const monto = Number(String(formData.get("monto") ?? "").replace(",", "."));
   const venceDia = Number(formData.get("venceDia"));

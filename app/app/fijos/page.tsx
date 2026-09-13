@@ -1,8 +1,9 @@
 import { EstadoObra, TipoCuenta } from "@prisma/client";
 
-import { LogoutButton } from "@/components/logout-button";
+import { AppHeader } from "@/components/app-header";
 import { calcularMontoPagadoGastoFijo } from "@/lib/finanzas";
 import { prisma } from "@/lib/prisma";
+import { formatearPeriodo, obtenerPeriodoOperativo } from "@/lib/periodos";
 
 import {
   FijosClient,
@@ -12,12 +13,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const monthName = new Intl.DateTimeFormat("es-AR", {
-  month: "long",
-  year: "numeric",
-  timeZone: "America/Argentina/Buenos_Aires",
-});
-
 function accountName(tipo: TipoCuenta, cliente?: string | null) {
   if (tipo === TipoCuenta.CAJA_DIARIA) return "Diarios";
   if (tipo === TipoCuenta.RESIDUALES) return "Residuales";
@@ -26,19 +21,7 @@ function accountName(tipo: TipoCuenta, cliente?: string | null) {
 }
 
 export default async function FijosPage() {
-  const today = new Date();
-  const parts = new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "numeric",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).formatToParts(today);
-  const year = Number(parts.find((part) => part.type === "year")?.value);
-  const month = Number(parts.find((part) => part.type === "month")?.value);
-  const period =
-    (await prisma.periodo.findFirst({ where: { anio: year, mes: month } })) ??
-    (await prisma.periodo.findFirst({
-      orderBy: [{ anio: "desc" }, { mes: "desc" }],
-    }));
+  const period = await obtenerPeriodoOperativo();
 
   const [fixedExpenses, sourceAccounts] = await Promise.all([
     period
@@ -114,27 +97,12 @@ export default async function FijosPage() {
   }));
 
   const periodLabel = period
-    ? monthName.format(new Date(Date.UTC(period.anio, period.mes - 1, 15, 12)))
+    ? formatearPeriodo(period.anio, period.mes)
     : "Sin período";
 
   return (
     <div className="min-h-dvh bg-[#f8f9ff] text-[#0b1c30]">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-black/[0.04] bg-[#f8f9ff]/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-2xl items-center justify-between gap-2 px-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#131b2e] text-sm font-bold text-white">
-              FD
-            </div>
-            <span className="hidden text-sm font-bold tracking-tight min-[390px]:inline">
-              FinanzasDiego
-            </span>
-          </div>
-          <div className="flex min-h-11 items-center rounded-full bg-[#eff4ff] px-3 text-xs font-semibold capitalize">
-            {periodLabel}
-          </div>
-          <LogoutButton compact />
-        </div>
-      </header>
+      <AppHeader periodLabel={periodLabel} />
       <FijosClient
         accounts={accounts}
         expenses={expenses}

@@ -1,8 +1,11 @@
 import { EstadoObra, TipoCuenta } from "@prisma/client";
 
-import { LogoutButton } from "@/components/logout-button";
-import { NuevoMovimientoTrigger } from "@/components/nuevo-movimiento";
+import { AppHeader } from "@/components/app-header";
+import { BottomNav } from "@/components/bottom-nav";
 import { prisma } from "@/lib/prisma";
+import { formatearPeriodo, obtenerPeriodoOperativo } from "@/lib/periodos";
+
+import { CerrarPeriodoButton } from "./cerrar-periodo-button";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +18,6 @@ const compactMoney = new Intl.NumberFormat("es-AR", {
   notation: "compact",
   maximumFractionDigits: 0,
 });
-const monthName = new Intl.DateTimeFormat("es-AR", {
-  month: "short",
-  year: "numeric",
-  timeZone: "America/Argentina/Buenos_Aires",
-});
 const shortDate = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "short",
@@ -28,6 +26,8 @@ const shortDate = new Intl.DateTimeFormat("es-AR", {
 const timeFormat = new Intl.DateTimeFormat("es-AR", {
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
   timeZone: "America/Argentina/Buenos_Aires",
 });
 
@@ -102,10 +102,6 @@ function movementTitle(
   return concepto;
 }
 
-function periodDate(anio: number, mes: number) {
-  return new Date(Date.UTC(anio, mes - 1, 15, 12));
-}
-
 function displayDate(date: Date, today: Date) {
   const options = { timeZone: "America/Argentina/Buenos_Aires" } as const;
   const dateKey = date.toLocaleDateString("en-CA", options);
@@ -120,28 +116,12 @@ function displayDate(date: Date, today: Date) {
 
 export default async function AppPage() {
   const today = new Date();
-  const dateParts = new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "numeric",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).formatToParts(today);
-  const currentYear = Number(
-    dateParts.find((part) => part.type === "year")?.value,
-  );
-  const currentMonth = Number(
-    dateParts.find((part) => part.type === "month")?.value,
-  );
-
-  const [currentPeriod, latestPeriod, accounts] = await Promise.all([
-    prisma.periodo.findFirst({
-      where: { anio: currentYear, mes: currentMonth },
-    }),
-    prisma.periodo.findFirst({ orderBy: [{ anio: "desc" }, { mes: "desc" }] }),
+  const [period, accounts] = await Promise.all([
+    obtenerPeriodoOperativo(today),
     prisma.cuenta.findMany({
       include: { obra: { select: { cliente: true, estado: true } } },
     }),
   ]);
-  const period = currentPeriod ?? latestPeriod;
 
   const [periodMovements, previousPeriod] = period
     ? await Promise.all([
@@ -225,7 +205,7 @@ export default async function AppPage() {
   const weeklyTotal = weeklyExpenses.reduce((sum, value) => sum + value, 0);
   const maxWeek = Math.max(...weeklyExpenses, 1);
   const periodLabel = period
-    ? monthName.format(periodDate(period.anio, period.mes))
+    ? formatearPeriodo(period.anio, period.mes)
     : "Sin período";
   const allocatedTypes = [
     dailyAccounts,
@@ -320,28 +300,9 @@ export default async function AppPage() {
 
   return (
     <div className="min-h-dvh bg-[#f8f9ff] text-[#0b1c30]">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-black/[0.04] bg-[#f8f9ff]/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-2xl items-center justify-between gap-2 px-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#131b2e] text-sm font-bold text-white">
-              FD
-            </div>
-            <span className="hidden text-sm font-bold tracking-tight min-[390px]:inline">
-              FinanzasDiego
-            </span>
-          </div>
-          <div className="flex min-h-11 items-center gap-2 rounded-full bg-[#eff4ff] px-3 text-xs font-semibold">
-            <Icon
-              name="calendar"
-              className="h-[18px] w-[18px] text-[#00714d]"
-            />
-            <span className="capitalize">{periodLabel}</span>
-          </div>
-          <LogoutButton compact />
-        </div>
-      </header>
+      <AppHeader periodLabel={periodLabel} />
 
-      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-28 pt-20">
+      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))]">
         <section className="relative overflow-hidden rounded-2xl bg-[#131b2e] p-4 text-white shadow-sm">
           <div className="pointer-events-none absolute -bottom-8 -right-6 h-36 w-36 rounded-full bg-[#6ffbbe]/15 blur-2xl" />
           <div className="relative flex items-center justify-between gap-3">
@@ -475,22 +436,24 @@ export default async function AppPage() {
               </span>
             </p>
           </div>
-          <button
-            className="flex shrink-0 items-center gap-1 rounded-lg bg-[#131b2e] px-3 py-2.5 text-xs font-semibold text-white opacity-90"
-            type="button"
-          >
-            {period?.cerrado ? "Mes cerrado" : "Cerrar mes"}
-            <Icon name="chevron" className="h-4 w-4" />
-          </button>
+          {period ? (
+            <CerrarPeriodoButton
+              periodoId={period.id}
+              periodoLabel={periodLabel}
+            />
+          ) : null}
         </section>
 
         <section className="space-y-1 pb-2">
           <div className="flex items-center justify-between px-0.5">
             <h2 className="text-base font-semibold">Última actividad</h2>
-            <span className="flex items-center gap-0.5 text-xs font-semibold text-[#00714d]">
+            <a
+              className="flex items-center gap-0.5 text-xs font-semibold text-[#00714d]"
+              href="/app/movimientos"
+            >
               Ver todo
               <Icon name="chevron" className="h-4 w-4" />
-            </span>
+            </a>
           </div>
           <div className="divide-y divide-[#eff4ff] overflow-hidden rounded-xl bg-white shadow-[0_1px_8px_rgba(11,28,48,0.05)]">
             {activity.length === 0 ? (
@@ -536,39 +499,7 @@ export default async function AppPage() {
         </section>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-black/[0.04] bg-[#f8f9ff]/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-2xl items-center justify-around px-1">
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 font-bold text-[#00714d]"
-            href="/app"
-            aria-current="page"
-          >
-            <Icon name="dashboard" className="h-[22px] w-[22px]" />
-            <span className="text-[11px]">Inicio</span>
-          </a>
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]"
-            href="/app/movimientos"
-          >
-            <Icon name="activity" className="h-[22px] w-[22px]" />
-            <span className="text-[11px]">Actividad</span>
-          </a>
-          <span className="-mt-5 flex flex-col items-center justify-center">
-            <NuevoMovimientoTrigger />
-          </span>
-          <span className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]">
-            <Icon name="construction" className="h-[22px] w-[22px]" />
-            <span className="text-[11px]">Obras</span>
-          </span>
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]"
-            href="/app/fijos"
-          >
-            <Icon name="checklist" className="h-[22px] w-[22px]" />
-            <span className="text-[11px]">Fijos</span>
-          </a>
-        </div>
-      </nav>
+      <BottomNav active="home" />
     </div>
   );
 }

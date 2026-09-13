@@ -13,8 +13,18 @@ body {
 }
 
 button,
-a {
+a,
+summary,
+[role="button"] {
   -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
 }
 
 ::-webkit-scrollbar {

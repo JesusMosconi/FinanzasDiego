@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
-import { NuevoMovimientoTrigger } from "@/components/nuevo-movimiento";
+import { BottomNav } from "@/components/bottom-nav";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useToast } from "@/components/toast-provider";
 
 import {
   type ActionState,
@@ -40,6 +42,13 @@ const paymentDate = new Intl.DateTimeFormat("es-AR", {
   timeZone: "America/Argentina/Buenos_Aires",
 });
 const initialState: ActionState = { ok: false, message: "" };
+const fixedGroups = [
+  "Gastos vivienda",
+  "Tarjetas Crédito, Créditos y Préstamos",
+  "Laborales y salud",
+  "Vehículos/Mantenimientos",
+  "Cuidadoras",
+] as const;
 
 export function FijosClient({
   expenses,
@@ -73,7 +82,7 @@ export function FijosClient({
 
   return (
     <>
-      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-28 pt-20">
+      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))]">
         <section className="flex items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#45464d]">
@@ -210,39 +219,7 @@ export function FijosClient({
         </button>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.04] bg-[#f8f9ff]/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-2xl items-center justify-around px-1 text-[11px]">
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]"
-            href="/app"
-          >
-            <span className="text-xl">▦</span>
-            <span>Inicio</span>
-          </a>
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]"
-            href="/app/movimientos"
-          >
-            <span className="text-xl">▤</span>
-            <span>Actividad</span>
-          </a>
-          <span className="-mt-5">
-            <NuevoMovimientoTrigger />
-          </span>
-          <span className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]">
-            <span className="text-xl">⌁</span>
-            <span>Obras</span>
-          </span>
-          <a
-            aria-current="page"
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 font-bold text-[#00714d]"
-            href="/app/fijos"
-          >
-            <span className="text-xl">✓</span>
-            <span>Fijos</span>
-          </a>
-        </div>
-      </nav>
+      <BottomNav active="fixed" />
 
       {selected ? (
         <PaymentDialog
@@ -299,6 +276,8 @@ function FixedExpenseCard({
   expense: FixedExpenseView;
   onPay: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
   const remaining = Math.max(expense.total - expense.paid, 0);
   const complete = remaining === 0;
   const partial = expense.paid > 0 && !complete;
@@ -372,23 +351,28 @@ function FixedExpenseCard({
       <form
         action={borrarGastoFijoAction}
         className="flex justify-end"
-        onSubmit={(event) => {
-          if (
-            !window.confirm(
-              "¿Eliminar esta obligación? Los pagos registrados se conservarán en el historial.",
-            )
-          ) {
-            event.preventDefault();
-          }
-        }}
+        ref={deleteFormRef}
       >
         <input name="gastoFijoId" type="hidden" value={expense.id} />
         <button
           className="min-h-9 px-2 text-xs font-semibold text-[#93000a]"
-          type="submit"
+          onClick={() => setConfirmingDelete(true)}
+          type="button"
         >
           Eliminar obligación
         </button>
+        <ConfirmDialog
+          confirmLabel="Eliminar"
+          danger
+          description="Los pagos registrados se conservarán en el historial de movimientos."
+          onClose={() => setConfirmingDelete(false)}
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            deleteFormRef.current?.requestSubmit();
+          }}
+          open={confirmingDelete}
+          title="¿Eliminar esta obligación?"
+        />
       </form>
     </article>
   );
@@ -408,6 +392,12 @@ function PaymentDialog({
     initialState,
   );
   const remaining = Math.max(expense.total - expense.paid, 0);
+  const [clientError, setClientError] = useState("");
+  const showToast = useToast();
+
+  useEffect(() => {
+    if (state.ok && state.message) showToast(state.message);
+  }, [showToast, state]);
   return (
     <div
       aria-modal="true"
@@ -417,6 +407,22 @@ function PaymentDialog({
       <form
         action={action}
         className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-[#f8f9ff] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl"
+        noValidate
+        onSubmit={(event) => {
+          const data = new FormData(event.currentTarget);
+          const amount = Number(data.get("monto"));
+          const source = String(data.get("cuentaOrigenId") ?? "");
+          let error = "";
+          if (!Number.isFinite(amount) || amount <= 0)
+            error = "Ingresá un monto mayor a cero.";
+          else if (amount > remaining)
+            error = "El monto supera el saldo pendiente.";
+          else if (!source) error = "Seleccioná una caja de origen.";
+          if (error) {
+            event.preventDefault();
+            setClientError(error);
+          } else setClientError("");
+        }}
       >
         <input name="gastoFijoId" type="hidden" value={expense.id} />
         <div className="mx-auto h-1 w-12 rounded-full bg-[#c6c6cd]" />
@@ -476,11 +482,11 @@ function PaymentDialog({
             </label>
           ))}
         </fieldset>
-        {state.message ? (
+        {clientError || state.message ? (
           <p
-            className={`rounded-lg px-3 py-2 text-xs font-semibold ${state.ok ? "bg-[#6cf8bb]/45 text-[#005236]" : "bg-[#ffdad6] text-[#93000a]"}`}
+            className={`rounded-lg px-3 py-2 text-xs font-semibold ${!clientError && state.ok ? "bg-[#6cf8bb]/45 text-[#005236]" : "bg-[#ffdad6] text-[#93000a]"}`}
           >
-            {state.message}
+            {clientError || state.message}
           </p>
         ) : null}
         <div className="flex gap-2 pt-1">
@@ -515,6 +521,13 @@ function CreateDialog({
     crearGastoFijoAction,
     initialState,
   );
+  const [group, setGroup] = useState("");
+  const [clientError, setClientError] = useState("");
+  const showToast = useToast();
+
+  useEffect(() => {
+    if (state.ok && state.message) showToast(state.message);
+  }, [showToast, state]);
 
   return (
     <div
@@ -525,6 +538,26 @@ function CreateDialog({
       <form
         action={action}
         className="w-full max-w-md space-y-4 rounded-2xl bg-[#f8f9ff] p-4 shadow-2xl"
+        noValidate
+        onSubmit={(event) => {
+          const data = new FormData(event.currentTarget);
+          const customGroup = String(data.get("grupo") ?? "").trim();
+          const name = String(data.get("obligacion") ?? "").trim();
+          const amount = Number(data.get("monto"));
+          const dueDay = Number(data.get("venceDia"));
+          let error = "";
+          if (!group || (group === "OTRO" && !customGroup))
+            error = "Seleccioná o escribí un grupo.";
+          else if (!name) error = "Completá el nombre de la obligación.";
+          else if (!Number.isFinite(amount) || amount <= 0)
+            error = "Ingresá un monto mayor a cero.";
+          else if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)
+            error = "Ingresá un día de vencimiento entre 1 y 31.";
+          if (error) {
+            event.preventDefault();
+            setClientError(error);
+          } else setClientError("");
+        }}
       >
         <input name="periodoId" type="hidden" value={periodId} />
         <div className="flex items-start justify-between gap-3">
@@ -545,13 +578,31 @@ function CreateDialog({
         </div>
         <label className="block text-xs font-semibold">
           Grupo
-          <input
+          <select
             className="mt-1 h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-[#00714d] focus:ring-2"
-            name="grupo"
-            placeholder="Ej. Servicios"
-            required
-          />
+            name="grupoPredefinido"
+            onChange={(event) => setGroup(event.target.value)}
+            value={group}
+          >
+            <option value="">Seleccionar grupo</option>
+            {fixedGroups.map((fixedGroup) => (
+              <option key={fixedGroup} value={fixedGroup}>
+                {fixedGroup}
+              </option>
+            ))}
+            <option value="OTRO">Otro...</option>
+          </select>
         </label>
+        {group === "OTRO" ? (
+          <label className="block text-xs font-semibold">
+            Nombre del grupo
+            <input
+              className="mt-1 h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-[#00714d] focus:ring-2"
+              name="grupo"
+              placeholder="Escribir otro grupo"
+            />
+          </label>
+        ) : null}
         <label className="block text-xs font-semibold">
           Obligación
           <input
@@ -587,11 +638,11 @@ function CreateDialog({
             />
           </label>
         </div>
-        {state.message ? (
+        {clientError || state.message ? (
           <p
-            className={`rounded-lg px-3 py-2 text-xs font-semibold ${state.ok ? "bg-[#6cf8bb]/45 text-[#005236]" : "bg-[#ffdad6] text-[#93000a]"}`}
+            className={`rounded-lg px-3 py-2 text-xs font-semibold ${!clientError && state.ok ? "bg-[#6cf8bb]/45 text-[#005236]" : "bg-[#ffdad6] text-[#93000a]"}`}
           >
-            {state.message}
+            {clientError || state.message}
           </p>
         ) : null}
         <div className="flex gap-2">

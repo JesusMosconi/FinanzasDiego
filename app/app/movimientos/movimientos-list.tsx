@@ -3,7 +3,7 @@
 import { TipoCuenta } from "@prisma/client";
 import { useMemo, useState } from "react";
 
-import { NuevoMovimientoTrigger } from "@/components/nuevo-movimiento";
+import { BottomNav } from "@/components/bottom-nav";
 
 export type ActivityItem = {
   id: string;
@@ -18,7 +18,7 @@ export type ActivityItem = {
   adjustment: boolean;
 };
 
-type BoxTab = "daily" | "residual" | "collections";
+type BoxTab = "all" | "daily" | "residual" | "collections" | "advances";
 type KindFilter = "all" | ActivityItem["kind"];
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -37,13 +37,16 @@ const longDate = new Intl.DateTimeFormat("es-AR", {
 const timeFormat = new Intl.DateTimeFormat("es-AR", {
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
   timeZone: "America/Argentina/Buenos_Aires",
 });
 
-const tabTypes: Record<BoxTab, TipoCuenta> = {
+const tabTypes: Partial<Record<BoxTab, TipoCuenta>> = {
   daily: TipoCuenta.CAJA_DIARIA,
   residual: TipoCuenta.RESIDUALES,
   collections: TipoCuenta.COBRANZAS,
+  advances: TipoCuenta.ANTICIPO,
 };
 
 function dateKey(value: string) {
@@ -76,18 +79,20 @@ export function MovimientosList({
   items: ActivityItem[];
   periodLabel: string;
 }) {
-  const [box, setBox] = useState<BoxTab>("daily");
+  const [box, setBox] = useState<BoxTab>("all");
   const [kind, setKind] = useState<KindFilter>("all");
   const [query, setQuery] = useState("");
   const selectedType = tabTypes[box];
 
   const boxItems = useMemo(
     () =>
-      items.filter(
-        (item) =>
-          item.originType === selectedType ||
-          item.destinationType === selectedType,
-      ),
+      selectedType
+        ? items.filter(
+            (item) =>
+              item.originType === selectedType ||
+              item.destinationType === selectedType,
+          )
+        : items,
     [items, selectedType],
   );
 
@@ -126,7 +131,7 @@ export function MovimientosList({
 
   return (
     <>
-      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-28 pt-20">
+      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))]">
         <section className="space-y-2 pt-1">
           <div className="flex items-end justify-between gap-3">
             <div>
@@ -186,17 +191,19 @@ export function MovimientosList({
         </section>
 
         <section className="space-y-2">
-          <div className="flex rounded-full bg-[#e5eeff] p-1 text-xs font-semibold text-[#45464d]">
+          <div className="flex gap-1 overflow-x-auto rounded-full bg-[#e5eeff] p-1 text-xs font-semibold text-[#45464d]">
             {(
               [
+                ["all", "Todos"],
                 ["daily", "Diarios"],
                 ["residual", "Residuales"],
                 ["collections", "Cobranzas"],
+                ["advances", "Anticipos"],
               ] as const
             ).map(([value, label]) => (
               <button
                 key={value}
-                className={`min-h-9 flex-1 rounded-full px-2 transition ${box === value ? "bg-white text-[#0b1c30] shadow-sm" : "hover:text-[#0b1c30]"}`}
+                className={`min-h-9 shrink-0 rounded-full px-3 transition ${box === value ? "bg-white text-[#0b1c30] shadow-sm" : "hover:text-[#0b1c30]"}`}
                 onClick={() => setBox(value)}
                 type="button"
               >
@@ -228,9 +235,15 @@ export function MovimientosList({
         <section className="space-y-4">
           {groups.length === 0 ? (
             <div className="rounded-xl bg-white p-8 text-center shadow-sm">
-              <p className="font-semibold">No hay registros para mostrar</p>
+              <p className="font-semibold">
+                {items.length === 0
+                  ? "Todavía no hay movimientos en este período"
+                  : "No hay registros para mostrar"}
+              </p>
               <p className="mt-1 text-xs text-[#45464d]">
-                Probá cambiando los filtros o la búsqueda.
+                {items.length === 0
+                  ? "Usá el botón + para registrar el primero."
+                  : "Probá cambiando los filtros o la búsqueda."}
               </p>
             </div>
           ) : (
@@ -270,39 +283,7 @@ export function MovimientosList({
         </section>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-black/[0.04] bg-[#f8f9ff]/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-2xl items-center justify-around px-1 text-[11px]">
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]"
-            href="/app"
-          >
-            <span className="text-xl">▦</span>
-            <span>Inicio</span>
-          </a>
-          <a
-            aria-current="page"
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 font-bold text-[#00714d]"
-            href="/app/movimientos"
-          >
-            <span className="text-xl">▤</span>
-            <span>Actividad</span>
-          </a>
-          <span className="-mt-5">
-            <NuevoMovimientoTrigger />
-          </span>
-          <span className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]">
-            <span className="text-xl">⌁</span>
-            <span>Obras</span>
-          </span>
-          <a
-            className="flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 text-[#45464d]"
-            href="/app/fijos"
-          >
-            <span className="text-xl">✓</span>
-            <span>Fijos</span>
-          </a>
-        </div>
-      </nav>
+      <BottomNav active="activity" />
     </>
   );
 }
