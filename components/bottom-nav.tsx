@@ -1,6 +1,10 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import { NuevoMovimientoTrigger } from "@/components/nuevo-movimiento";
 
-type Section = "home" | "activity" | "works" | "fixed";
 type IconName = "activity" | "checklist" | "construction" | "dashboard";
 const iconPaths: Record<IconName, React.ReactNode> = {
   activity: <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />,
@@ -12,35 +16,34 @@ const items: {
   href: string;
   icon: IconName;
   label: string;
-  section: Section;
 }[] = [
-  { href: "/app", icon: "dashboard", label: "Inicio", section: "home" },
+  { href: "/app", icon: "dashboard", label: "Inicio" },
   {
     href: "/app/movimientos",
     icon: "activity",
     label: "Actividad",
-    section: "activity",
   },
   {
     href: "/app/obras",
     icon: "construction",
     label: "Obras",
-    section: "works",
   },
-  { href: "/app/fijos", icon: "checklist", label: "Fijos", section: "fixed" },
+  { href: "/app/fijos", icon: "checklist", label: "Fijos" },
 ];
-export function BottomNav({ active }: { active: Section }) {
+export function BottomNav() {
+  const pathname = usePathname();
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.04] bg-[#f8f9ff]/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,0,0,0.05)] backdrop-blur-xl">
       <div className="relative mx-auto grid h-16 max-w-2xl grid-cols-5 items-center px-1 text-[11px]">
-        <NavItem active={active === items[0].section} {...items[0]} />
-        <NavItem active={active === items[1].section} {...items[1]} />
+        <NavItem active={pathname === items[0].href} {...items[0]} />
+        <NavItem active={pathname === items[1].href} {...items[1]} />
         <div aria-hidden="true" />
         <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
           <NuevoMovimientoTrigger />
         </div>
-        <NavItem active={active === items[2].section} {...items[2]} />
-        <NavItem active={active === items[3].section} {...items[3]} />
+        <NavItem active={pathname === items[2].href} {...items[2]} />
+        <NavItem active={pathname === items[3].href} {...items[3]} />
       </div>
     </nav>
   );
@@ -55,10 +58,9 @@ function NavItem({
   href: string;
   icon: IconName;
   label: string;
-  section: Section;
 }) {
   return (
-    <a
+    <Link
       aria-current={active ? "page" : undefined}
       className={`flex h-16 min-w-0 flex-col items-center justify-center gap-0.5 ${active ? "font-bold text-[#00714d]" : "text-[#45464d]"}`}
       href={href}
@@ -76,6 +78,6 @@ function NavItem({
         {iconPaths[icon]}
       </svg>
       <span>{label}</span>
-    </a>
+    </Link>
   );
 }

@@ -1,7 +1,6 @@
 import { EstadoObra, TipoCuenta } from "@prisma/client";
 
 import { AppHeader } from "@/components/app-header";
-import { BottomNav } from "@/components/bottom-nav";
 import { prisma } from "@/lib/prisma";
 import { formatearPeriodo, obtenerPeriodoOperativo } from "@/lib/periodos";
 
@@ -499,7 +498,6 @@ export default async function AppPage() {
         </section>
       </main>
 
-      <BottomNav active="home" />
     </div>
   );
 }

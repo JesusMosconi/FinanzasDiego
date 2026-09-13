@@ -1,8 +1,4 @@
-import { BottomNav } from "@/components/bottom-nav";
-
-type Section = "activity" | "works" | "fixed";
-
-export function PageListSkeleton({ active }: { active: Section }) {
+export function PageListSkeleton() {
   return (
     <div aria-busy="true" aria-label="Cargando contenido" className="min-h-dvh animate-pulse bg-[#f8f9ff] text-[#0b1c30]">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-black/[0.04] bg-[#f8f9ff] pt-[env(safe-area-inset-top)]">
@@ -32,7 +28,6 @@ export function PageListSkeleton({ active }: { active: Section }) {
           </div>
         ))}
       </main>
-      <BottomNav active={active} />
     </div>
   );
 }

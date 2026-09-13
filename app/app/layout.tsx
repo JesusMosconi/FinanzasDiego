@@ -5,6 +5,8 @@ import {
   NuevoMovimientoProvider,
 } from "@/components/nuevo-movimiento";
 import { InstallAppBanner } from "@/components/install-app-banner";
+import { BottomNav } from "@/components/bottom-nav";
+import { PageTransition } from "@/components/page-transition";
 import { ToastProvider } from "@/components/toast-provider";
 import { prisma } from "@/lib/prisma";
 import { obtenerPeriodoOperativo } from "@/lib/periodos";
@@ -66,7 +68,8 @@ export default async function AppLayout({
         })),
       }}
       >
-        {children}
+        <PageTransition>{children}</PageTransition>
+        <BottomNav />
         <InstallAppBanner />
       </NuevoMovimientoProvider>
     </ToastProvider>

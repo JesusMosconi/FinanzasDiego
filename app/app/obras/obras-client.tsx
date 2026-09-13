@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
-import { BottomNav } from "@/components/bottom-nav";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast-provider";
 
@@ -107,8 +106,6 @@ export function ObrasClient({
           </section>
         )}
       </main>
-
-      <BottomNav active="works" />
 
       {creando && periodoId ? (
         <CrearObraDialog

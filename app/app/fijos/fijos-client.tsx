@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
-import { BottomNav } from "@/components/bottom-nav";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast-provider";
 
@@ -218,8 +217,6 @@ export function FijosClient({
           Agregar nueva obligación
         </button>
       </main>
-
-      <BottomNav active="fixed" />
 
       {selected ? (
         <PaymentDialog

@@ -3,7 +3,6 @@
 import { TipoCuenta } from "@prisma/client";
 import { useMemo, useState } from "react";
 
-import { BottomNav } from "@/components/bottom-nav";
 
 export type ActivityItem = {
   id: string;
@@ -283,7 +282,6 @@ export function MovimientosList({
         </section>
       </main>
 
-      <BottomNav active="activity" />
     </>
   );
 }
