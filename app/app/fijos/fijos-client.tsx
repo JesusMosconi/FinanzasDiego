@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SelectDialog } from "@/components/select-dialog";
 import { useToast } from "@/components/toast-provider";
 
 import {
@@ -575,20 +576,20 @@ function CreateDialog({
         </div>
         <label className="block text-xs font-semibold">
           Grupo
-          <select
-            className="mt-1 h-11 w-full rounded-xl bg-white px-3 text-sm outline-none ring-[#00714d] focus:ring-2"
+          <SelectDialog
+            label="Grupo"
             name="grupoPredefinido"
-            onChange={(event) => setGroup(event.target.value)}
+            onChange={setGroup}
+            options={[
+              ...fixedGroups.map((fixedGroup) => ({
+                value: fixedGroup,
+                label: fixedGroup,
+              })),
+              { value: "OTRO", label: "Otro..." },
+            ]}
+            placeholder="Seleccionar grupo"
             value={group}
-          >
-            <option value="">Seleccionar grupo</option>
-            {fixedGroups.map((fixedGroup) => (
-              <option key={fixedGroup} value={fixedGroup}>
-                {fixedGroup}
-              </option>
-            ))}
-            <option value="OTRO">Otro...</option>
-          </select>
+          />
         </label>
         {group === "OTRO" ? (
           <label className="block text-xs font-semibold">

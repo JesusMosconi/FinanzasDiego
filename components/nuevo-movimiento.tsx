@@ -12,6 +12,7 @@ import {
   guardarNuevoRegistro,
   type NuevoRegistroState,
 } from "@/app/app/nuevo-registro-actions";
+import { SelectDialog } from "@/components/select-dialog";
 import { useToast } from "@/components/toast-provider";
 
 export type ModalAccount = {
@@ -240,32 +241,20 @@ function NuevoMovimientoDialog({
           <div className="space-y-3 rounded-xl bg-[#dce9ff] p-3">
             <label className="block text-xs font-semibold">
               Tipo de cobranza
-              <select
-                className="mt-1 h-11 w-full rounded-lg bg-white px-3"
+              <SelectDialog
+                label="Tipo de cobranza"
                 name="tipoCobranza"
-                onChange={(event) => setCollectionType(event.target.value)}
+                onChange={setCollectionType}
+                options={[
+                  { value: "MANO_OBRA", label: "Mano de obra" },
+                  { value: "RESIDUAL", label: "Residual" },
+                  { value: "FAMILIA", label: "Aporte familiar" },
+                ]}
                 value={collectionType}
-              >
-                <option value="MANO_OBRA">Mano de obra</option>
-                <option value="RESIDUAL">Residual</option>
-                <option value="FAMILIA">Aporte familiar</option>
-              </select>
+              />
             </label>
             {collectionType === "MANO_OBRA" ? (
-              <label className="block text-xs font-semibold">
-                Obra asociada (opcional)
-                <select
-                  className="mt-1 h-11 w-full rounded-lg bg-white px-3"
-                  name="obraId"
-                >
-                  <option value="">Sin obra asociada</option>
-                  {options.works.map((work) => (
-                    <option key={work.id} value={work.id}>
-                      {work.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <WorkSelect works={options.works} />
             ) : null}
           </div>
         ) : null}
@@ -333,10 +322,9 @@ function CategoryAccountSelect({
     <div className="space-y-2">
       <label className="block text-xs font-semibold">
         {label}
-        <select
-          className="mt-1 h-11 w-full rounded-xl bg-white px-3"
-          onChange={(event) => {
-            const type = event.target.value;
+        <SelectDialog
+          label={label}
+          onChange={(type) => {
             setCategory(type);
             onChange(
               type === "ANTICIPO"
@@ -344,38 +332,51 @@ function CategoryAccountSelect({
                 : (accounts.find((account) => account.type === type)?.id ?? ""),
             );
           }}
+          options={categories.map(([type, categoryLabel]) => ({
+            value: type,
+            label: categoryLabel,
+            disabled: !accounts.some((account) => account.type === type),
+          }))}
+          placeholder="Seleccionar caja"
           value={category}
-        >
-          <option value="">Seleccionar caja</option>
-          {categories.map(([type, categoryLabel]) => (
-            <option
-              disabled={!accounts.some((account) => account.type === type)}
-              key={type}
-              value={type}
-            >
-              {categoryLabel}
-            </option>
-          ))}
-        </select>
+        />
       </label>
       {category === "ANTICIPO" ? (
         <label className="block text-xs font-semibold">
           Anticipo activo
-          <select
-            className="mt-1 h-11 w-full rounded-xl bg-white px-3"
-            onChange={(event) => onChange(event.target.value)}
+          <SelectDialog
+            label="Anticipo activo"
+            onChange={onChange}
+            options={advances.map((account) => ({
+              value: account.id,
+              label: account.name.replace(/^Anticipo · /, ""),
+            }))}
+            placeholder="Seleccionar anticipo"
             value={value}
-          >
-            <option value="">Seleccionar anticipo</option>
-            {advances.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name.replace(/^Anticipo · /, "")}
-              </option>
-            ))}
-          </select>
+          />
         </label>
       ) : null}
       <input name={name} type="hidden" value={value} />
     </div>
+  );
+}
+
+function WorkSelect({ works }: { works: { id: string; name: string }[] }) {
+  const [value, setValue] = useState("");
+
+  return (
+    <label className="block text-xs font-semibold">
+      Obra asociada (opcional)
+      <SelectDialog
+        label="Obra asociada"
+        name="obraId"
+        onChange={setValue}
+        options={[
+          { value: "", label: "Sin obra asociada" },
+          ...works.map((work) => ({ value: work.id, label: work.name })),
+        ]}
+        value={value}
+      />
+    </label>
   );
 }
