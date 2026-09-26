@@ -1,6 +1,8 @@
 import { EstadoObra, TipoCuenta } from "@prisma/client";
+import Link from "next/link";
 
 import { AppHeader } from "@/components/app-header";
+import { calcularMontoPagadoGastoFijo } from "@/lib/finanzas";
 import { prisma } from "@/lib/prisma";
 import { formatearPeriodo, obtenerPeriodoOperativo } from "@/lib/periodos";
 
@@ -122,7 +124,7 @@ export default async function AppPage() {
     }),
   ]);
 
-  const [periodMovements, previousPeriod] = period
+  const [periodMovements, previousPeriod, pendingFixedExpenses] = period
     ? await Promise.all([
         prisma.movimiento.findMany({
           where: { periodo_id: period.id },
@@ -145,8 +147,26 @@ export default async function AppPage() {
           include: { periodo_cuentas: true },
           orderBy: [{ anio: "desc" }, { mes: "desc" }],
         }),
+        prisma.gastoFijo.findMany({
+          where: { periodo_id: period.id, pagado: false },
+        }),
       ])
-    : [[], null];
+    : [[], null, []];
+
+  const pendingPaidAmounts = await Promise.all(
+    pendingFixedExpenses.map((expense) =>
+      calcularMontoPagadoGastoFijo(expense.id),
+    ),
+  );
+  const pendingPaymentsTotal = pendingFixedExpenses.reduce(
+    (total, expense, index) =>
+      total +
+      Math.max(
+        expense.monto_total.toNumber() - pendingPaidAmounts[index].toNumber(),
+        0,
+      ),
+    0,
+  );
 
   const dailyAccounts = accounts.filter(
     (account) => account.tipo === TipoCuenta.CAJA_DIARIA,
@@ -338,6 +358,35 @@ export default async function AppPage() {
           </div>
         </section>
 
+        <Link
+          className="relative overflow-hidden rounded-2xl bg-[#ffdad6] p-4 text-[#93000a] shadow-sm"
+          href="/app/deudas"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em]">
+              Pagos pendientes
+            </span>
+            <Icon name="expense" className="h-5 w-5" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-[28px] leading-9 font-bold tracking-[-0.02em]">
+              {money.format(pendingPaymentsTotal)}
+            </span>
+            <span className="text-[11px] font-bold">ARS</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between border-t border-[#93000a]/15 pt-3 text-[11px] font-bold">
+            <span>
+              {pendingFixedExpenses.length === 0
+                ? "Sin pagos pendientes"
+                : `${pendingFixedExpenses.length} ${pendingFixedExpenses.length === 1 ? "obligación" : "obligaciones"}`}
+            </span>
+            <span className="flex items-center gap-0.5">
+              Ver deudas
+              <Icon name="chevron" className="h-4 w-4" />
+            </span>
+          </div>
+        </Link>
+
         <section className="space-y-1">
           <div className="flex items-center justify-between px-0.5">
             <h1 className="text-base font-semibold">Cajas y asignaciones</h1>
@@ -497,7 +546,6 @@ export default async function AppPage() {
           </div>
         </section>
       </main>
-
     </div>
   );
 }

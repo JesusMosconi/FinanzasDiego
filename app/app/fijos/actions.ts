@@ -7,6 +7,7 @@ import {
   borrarGastoFijo,
   calcularMontoPagadoGastoFijo,
   crearGastoFijo,
+  editarGastoFijo,
   pagarGastoFijo,
 } from "@/lib/finanzas";
 import { prisma } from "@/lib/prisma";
@@ -54,6 +55,59 @@ export async function crearGastoFijoAction(
     return { ok: true, message: "Obligación agregada correctamente." };
   } catch {
     return { ok: false, message: "No se pudo agregar la obligación." };
+  }
+}
+
+export async function editarGastoFijoAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const gastoFijoId = String(formData.get("gastoFijoId") ?? "");
+  const grupoPredefinido = String(
+    formData.get("grupoPredefinido") ?? "",
+  ).trim();
+  const grupo =
+    grupoPredefinido === "OTRO"
+      ? String(formData.get("grupo") ?? "").trim()
+      : grupoPredefinido;
+  const obligacion = String(formData.get("obligacion") ?? "").trim();
+  const monto = Number(String(formData.get("monto") ?? "").replace(",", "."));
+  const venceDia = Number(formData.get("venceDia"));
+
+  if (
+    !gastoFijoId ||
+    !grupo ||
+    !obligacion ||
+    !Number.isFinite(monto) ||
+    monto <= 0 ||
+    !Number.isInteger(venceDia) ||
+    venceDia < 1 ||
+    venceDia > 31
+  ) {
+    return { ok: false, message: "Revisá los datos de la obligación." };
+  }
+
+  try {
+    await editarGastoFijo({
+      gastoFijoId,
+      grupo,
+      obligacion,
+      montoTotal: monto,
+      venceDia,
+    });
+    revalidatePath("/app");
+    revalidatePath("/app/deudas");
+    revalidatePath("/app/fijos");
+    revalidatePath("/app/movimientos");
+    return { ok: true, message: "Obligación actualizada correctamente." };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "El monto total no puede ser menor que lo ya pagado."
+    ) {
+      return { ok: false, message: error.message };
+    }
+    return { ok: false, message: "No se pudo actualizar la obligación." };
   }
 }
 

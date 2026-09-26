@@ -56,6 +56,14 @@ export type CrearGastoFijoInput = {
   periodoId: string;
 };
 
+export type EditarGastoFijoInput = {
+  gastoFijoId: string;
+  grupo: string;
+  obligacion: string;
+  montoTotal: DecimalInput;
+  venceDia: number;
+};
+
 export type CrearTransferenciaInput = {
   cuentaOrigenId: string;
   cuentaDestinoId: string;
@@ -186,6 +194,44 @@ export async function crearGastoFijo(data: CrearGastoFijoInput) {
         monto_total: data.montoTotal,
         vence_dia: data.venceDia,
         periodo_id: data.periodoId,
+      },
+    });
+  });
+}
+
+export async function editarGastoFijo(data: EditarGastoFijoInput) {
+  return prisma.$transaction(async (tx) => {
+    const gastoFijo = await tx.gastoFijo.findUniqueOrThrow({
+      where: { id: data.gastoFijoId },
+      select: { periodo_id: true, fecha_pago: true },
+    });
+    await validarPeriodoAbierto(tx, gastoFijo.periodo_id);
+
+    const [montoPagado, ultimoPago] = await Promise.all([
+      sumarMovimientosGastoFijo(tx, data.gastoFijoId),
+      tx.movimiento.findFirst({
+        where: { gasto_fijo_id: data.gastoFijoId },
+        select: { fecha: true },
+        orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
+      }),
+    ]);
+    const montoTotal = new Prisma.Decimal(String(data.montoTotal));
+    if (montoTotal.lessThan(montoPagado)) {
+      throw new Error("El monto total no puede ser menor que lo ya pagado.");
+    }
+
+    const pagado = montoPagado.greaterThanOrEqualTo(montoTotal);
+    return tx.gastoFijo.update({
+      where: { id: data.gastoFijoId },
+      data: {
+        grupo: data.grupo,
+        obligacion: data.obligacion,
+        monto_total: montoTotal,
+        vence_dia: data.venceDia,
+        pagado,
+        fecha_pago: pagado
+          ? (gastoFijo.fecha_pago ?? ultimoPago?.fecha ?? null)
+          : null,
       },
     });
   });
