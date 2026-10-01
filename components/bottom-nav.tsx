@@ -6,7 +6,12 @@ import { usePathname } from "next/navigation";
 import { NuevoMovimientoTrigger } from "@/components/nuevo-movimiento";
 
 type IconName =
-  "activity" | "checklist" | "construction" | "dashboard" | "deudas";
+  | "activity"
+  | "checklist"
+  | "construction"
+  | "dashboard"
+  | "deudas"
+  | "history";
 const iconPaths: Record<IconName, React.ReactNode> = {
   activity: <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />,
   checklist: <path d="m4 7 2 2 3-4m2 3h9M4 15l2 2 3-4m2 3h9" />,
@@ -16,6 +21,12 @@ const iconPaths: Record<IconName, React.ReactNode> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v6m0 4h.01" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5M12 7v5l3 2" />
     </>
   ),
 };
@@ -37,6 +48,7 @@ const items: {
   },
   { href: "/app/fijos", icon: "checklist", label: "Fijos" },
   { href: "/app/deudas", icon: "deudas", label: "Deudas" },
+  { href: "/app/historial", icon: "history", label: "Historial" },
 ];
 export function BottomNav() {
   const pathname = usePathname();
@@ -53,7 +65,7 @@ export function BottomNav() {
         </div>
         <NavItem active={pathname === items[3].href} {...items[3]} />
         <NavItem active={pathname === items[4].href} {...items[4]} />
-        <div aria-hidden="true" />
+        <NavItem active={pathname === items[5].href} {...items[5]} />
       </div>
     </nav>
   );

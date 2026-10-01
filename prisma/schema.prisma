@@ -125,6 +125,7 @@ model GastoFijo {
   fecha_pago  DateTime?
   periodo_id  String
   pagado      Boolean      @default(false)
+  archivado   Boolean      @default(false)
   periodo     Periodo      @relation(fields: [periodo_id], references: [id])
   movimientos Movimiento[]
   createdAt   DateTime     @default(now())

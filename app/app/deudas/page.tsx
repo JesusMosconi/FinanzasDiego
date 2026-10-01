@@ -15,7 +15,7 @@ export default async function DeudasPage() {
   const period = await obtenerPeriodoOperativo();
   const fixedExpenses = period
     ? await prisma.gastoFijo.findMany({
-        where: { periodo_id: period.id, pagado: false },
+        where: { periodo_id: period.id, pagado: false, archivado: false },
       })
     : [];
 

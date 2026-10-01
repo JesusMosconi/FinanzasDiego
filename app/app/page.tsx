@@ -148,7 +148,7 @@ export default async function AppPage() {
           orderBy: [{ anio: "desc" }, { mes: "desc" }],
         }),
         prisma.gastoFijo.findMany({
-          where: { periodo_id: period.id, pagado: false },
+          where: { periodo_id: period.id, pagado: false, archivado: false },
         }),
       ])
     : [[], null, []];

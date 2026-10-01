@@ -238,7 +238,18 @@ export async function editarGastoFijo(data: EditarGastoFijoInput) {
 }
 
 export async function borrarGastoFijo(gastoFijoId: string) {
-  return prisma.gastoFijo.delete({ where: { id: gastoFijoId } });
+  return prisma.$transaction(async (tx) => {
+    const gastoFijo = await tx.gastoFijo.findUniqueOrThrow({
+      where: { id: gastoFijoId },
+      select: { periodo_id: true },
+    });
+    await validarPeriodoAbierto(tx, gastoFijo.periodo_id);
+
+    return tx.gastoFijo.update({
+      where: { id: gastoFijoId },
+      data: { archivado: true },
+    });
+  });
 }
 
 export function validarCuenta({ tipo, obraId }: ValidarCuentaInput) {
@@ -412,8 +423,16 @@ export async function editarMovimiento(
   return prisma.$transaction(async (tx) => {
     const anterior = await tx.movimiento.findUniqueOrThrow({
       where: { id: movimientoId },
-      select: { cuenta_origen_id: true, cuenta_destino_id: true },
+      select: {
+        cuenta_origen_id: true,
+        cuenta_destino_id: true,
+        periodo_id: true,
+      },
     });
+    await validarPeriodoAbierto(tx, anterior.periodo_id);
+    if (data.periodoId && data.periodoId !== anterior.periodo_id) {
+      await validarPeriodoAbierto(tx, data.periodoId);
+    }
     const movimiento = await tx.movimiento.update({
       where: { id: movimientoId },
       data: {
@@ -449,8 +468,16 @@ export async function pagarGastoFijo(data: PagarGastoFijoInput) {
         obligacion: true,
         monto_total: true,
         fecha_pago: true,
+        periodo_id: true,
+        archivado: true,
       },
     });
+    if (gastoFijo.archivado) {
+      throw new Error("No se puede pagar una obligación archivada.");
+    }
+    if (gastoFijo.periodo_id !== data.periodoId) {
+      throw new Error("La obligación no pertenece al período indicado.");
+    }
     const fecha = data.fecha ?? new Date();
     const movimiento = await tx.movimiento.create({
       data: {
@@ -483,6 +510,11 @@ export async function pagarGastoFijo(data: PagarGastoFijoInput) {
 
 export async function borrarMovimiento(movimientoId: string) {
   return prisma.$transaction(async (tx) => {
+    const existente = await tx.movimiento.findUniqueOrThrow({
+      where: { id: movimientoId },
+      select: { periodo_id: true },
+    });
+    await validarPeriodoAbierto(tx, existente.periodo_id);
     const movimiento = await tx.movimiento.delete({
       where: { id: movimientoId },
     });
@@ -581,6 +613,7 @@ export async function borrarObra(obraId: string) {
                 id: true,
                 categoria: true,
                 cuenta_origen_id: true,
+                periodo_id: true,
               },
               take: 2,
             },
@@ -604,6 +637,8 @@ export async function borrarObra(obraId: string) {
         "No se puede eliminar una obra que ya tiene actividad financiera.",
       );
     }
+
+    await validarPeriodoAbierto(tx, movimientoInicial.periodo_id);
 
     await tx.movimiento.delete({ where: { id: movimientoInicial.id } });
     await tx.cuenta.delete({ where: { id: anticipo.id } });
@@ -649,7 +684,7 @@ export async function cerrarPeriodo(periodoId: string) {
           periodo_id: periodoId,
           cuenta_destino_id: null,
           cuenta_origen: { tipo: TipoCuenta.CAJA_DIARIA },
-          categoria: { not: "AJUSTE" },
+          categoria: { notIn: ["AJUSTE", "GASTO_FIJO"] },
         },
         _sum: { monto: true },
       }),

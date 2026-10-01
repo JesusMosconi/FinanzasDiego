@@ -26,7 +26,7 @@ export default async function FijosPage() {
   const [fixedExpenses, sourceAccounts] = await Promise.all([
     period
       ? prisma.gastoFijo.findMany({
-          where: { periodo_id: period.id },
+          where: { periodo_id: period.id, archivado: false },
           include: {
             movimientos: {
               include: {

@@ -2,7 +2,9 @@
 
 import { EstadoObra, TipoCuenta } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import {
   borrarGastoFijo,
   calcularMontoPagadoGastoFijo,
@@ -14,10 +16,16 @@ import { prisma } from "@/lib/prisma";
 
 export type ActionState = { ok: boolean; message: string };
 
+async function hasSession() {
+  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  return Boolean(token && (await verifySessionToken(token)));
+}
+
 export async function crearGastoFijoAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  if (!(await hasSession())) return { ok: false, message: "La sesión venció." };
   const periodoId = String(formData.get("periodoId") ?? "");
   const grupoPredefinido = String(
     formData.get("grupoPredefinido") ?? "",
@@ -62,6 +70,7 @@ export async function editarGastoFijoAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  if (!(await hasSession())) return { ok: false, message: "La sesión venció." };
   const gastoFijoId = String(formData.get("gastoFijoId") ?? "");
   const grupoPredefinido = String(
     formData.get("grupoPredefinido") ?? "",
@@ -112,6 +121,7 @@ export async function editarGastoFijoAction(
 }
 
 export async function borrarGastoFijoAction(formData: FormData) {
+  if (!(await hasSession())) return;
   const gastoFijoId = String(formData.get("gastoFijoId") ?? "");
   if (!gastoFijoId) return;
 
@@ -125,6 +135,7 @@ export async function registrarPagoAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  if (!(await hasSession())) return { ok: false, message: "La sesión venció." };
   const gastoFijoId = String(formData.get("gastoFijoId") ?? "");
   const cuentaOrigenId = String(formData.get("cuentaOrigenId") ?? "");
   const montoText = String(formData.get("monto") ?? "").replace(",", ".");
@@ -143,7 +154,7 @@ export async function registrarPagoAction(
     const [fixedExpense, paidAmount, sourceAccount] = await Promise.all([
       prisma.gastoFijo.findUniqueOrThrow({
         where: { id: gastoFijoId },
-        select: { monto_total: true, periodo_id: true },
+        select: { monto_total: true, periodo_id: true, archivado: true },
       }),
       calcularMontoPagadoGastoFijo(gastoFijoId),
       prisma.cuenta.findUniqueOrThrow({
@@ -153,6 +164,9 @@ export async function registrarPagoAction(
     ]);
     const remaining = fixedExpense.monto_total.minus(paidAmount);
 
+    if (fixedExpense.archivado) {
+      return { ok: false, message: "Esta obligación está archivada." };
+    }
     if (remaining.lessThanOrEqualTo(0)) {
       return { ok: false, message: "Esta obligación ya está saldada." };
     }
@@ -185,6 +199,7 @@ export async function duplicarMesAnteriorAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  if (!(await hasSession())) return { ok: false, message: "La sesión venció." };
   const periodoId = String(formData.get("periodoId") ?? "");
   if (!periodoId)
     return { ok: false, message: "No hay un período seleccionado." };
@@ -192,8 +207,17 @@ export async function duplicarMesAnteriorAction(
   try {
     const currentPeriod = await prisma.periodo.findUniqueOrThrow({
       where: { id: periodoId },
-      include: { _count: { select: { gastos_fijos: true } } },
+      include: {
+        _count: {
+          select: {
+            gastos_fijos: { where: { archivado: false } },
+          },
+        },
+      },
     });
+    if (currentPeriod.cerrado) {
+      return { ok: false, message: "El período seleccionado está cerrado." };
+    }
     if (currentPeriod._count.gastos_fijos > 0) {
       return { ok: false, message: "El período actual ya tiene obligaciones." };
     }
@@ -202,7 +226,10 @@ export async function duplicarMesAnteriorAction(
     const previousYear =
       currentPeriod.mes === 1 ? currentPeriod.anio - 1 : currentPeriod.anio;
     const previousExpenses = await prisma.gastoFijo.findMany({
-      where: { periodo: { anio: previousYear, mes: previousMonth } },
+      where: {
+        archivado: false,
+        periodo: { anio: previousYear, mes: previousMonth },
+      },
       select: {
         grupo: true,
         obligacion: true,
