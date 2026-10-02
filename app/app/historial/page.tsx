@@ -1,6 +1,11 @@
 import { TipoCuenta } from "@prisma/client";
 
 import { AppHeader } from "@/components/app-header";
+import {
+  esEgresoReal,
+  esIngresoComputable,
+  esLiquidacionObra,
+} from "@/lib/movimientos-estadisticas";
 import { prisma } from "@/lib/prisma";
 import { formatearPeriodo } from "@/lib/periodos";
 
@@ -69,49 +74,64 @@ export default async function HistorialPage({
     (period) => period.id === selected.id,
   );
   const previous = periods[selectedIndex + 1] ?? null;
-  const [movements, cumulativeMovements, previousCumulative, fixedExpenses] =
-    await Promise.all([
-      prisma.movimiento.findMany({
-        where: { periodo_id: selected.id },
-        include: {
-          cuenta_origen: { include: { obra: { select: { cliente: true } } } },
-          cuenta_destino: { include: { obra: { select: { cliente: true } } } },
-          gasto_fijo: { select: { obligacion: true } },
-        },
-        orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
-      }),
-      prisma.movimiento.findMany({
-        where: { periodo: periodWhere(selected.anio, selected.mes) },
-        select: {
-          monto: true,
-          cuenta_origen_id: true,
-          cuenta_destino_id: true,
-          cuenta_origen: { select: { tipo: true } },
-          cuenta_destino: { select: { tipo: true } },
-        },
-      }),
-      previous
-        ? prisma.movimiento.findMany({
-            where: { periodo: periodWhere(previous.anio, previous.mes) },
-            select: {
-              monto: true,
-              cuenta_origen_id: true,
-              cuenta_destino_id: true,
-            },
-          })
-        : Promise.resolve([]),
-      prisma.gastoFijo.findMany({
-        where: { periodo_id: selected.id },
-        include: { movimientos: { select: { monto: true } } },
-      }),
-    ]);
+  const [
+    movements,
+    cumulativeMovements,
+    previousCumulative,
+    previousMovements,
+    fixedExpenses,
+  ] = await Promise.all([
+    prisma.movimiento.findMany({
+      where: { periodo_id: selected.id },
+      include: {
+        cuenta_origen: { include: { obra: { select: { cliente: true } } } },
+        cuenta_destino: { include: { obra: { select: { cliente: true } } } },
+        gasto_fijo: { select: { obligacion: true } },
+      },
+      orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.movimiento.findMany({
+      where: { periodo: periodWhere(selected.anio, selected.mes) },
+      select: {
+        monto: true,
+        cuenta_origen_id: true,
+        cuenta_destino_id: true,
+        cuenta_origen: { select: { tipo: true } },
+        cuenta_destino: { select: { tipo: true } },
+      },
+    }),
+    previous
+      ? prisma.movimiento.findMany({
+          where: { periodo: periodWhere(previous.anio, previous.mes) },
+          select: {
+            monto: true,
+            cuenta_origen_id: true,
+            cuenta_destino_id: true,
+          },
+        })
+      : Promise.resolve([]),
+    previous
+      ? prisma.movimiento.findMany({
+          where: { periodo_id: previous.id },
+          include: {
+            cuenta_origen: { select: { tipo: true } },
+            cuenta_destino: { select: { tipo: true } },
+          },
+        })
+      : Promise.resolve([]),
+    prisma.gastoFijo.findMany({
+      where: { periodo_id: selected.id },
+      include: { movimientos: { select: { monto: true } } },
+    }),
+  ]);
 
-  const incomes = movements.filter((movement) => !movement.cuenta_origen_id);
-  const expenses = movements.filter(
-    (movement) => movement.cuenta_origen_id && !movement.cuenta_destino_id,
-  );
+  const incomes = movements.filter(esIngresoComputable);
+  const expenses = movements.filter(esEgresoReal);
   const transfers = movements.filter(
-    (movement) => movement.cuenta_origen_id && movement.cuenta_destino_id,
+    (movement) =>
+      movement.cuenta_origen_id &&
+      movement.cuenta_destino_id &&
+      !esLiquidacionObra(movement),
   );
   const incomeTotal = incomes.reduce(
     (sum, movement) => sum + movement.monto.toNumber(),
@@ -122,6 +142,15 @@ export default async function HistorialPage({
     0,
   );
   const result = incomeTotal - expenseTotal;
+  const previousIncomeTotal = previousMovements
+    .filter(esIngresoComputable)
+    .reduce((sum, movement) => sum + movement.monto.toNumber(), 0);
+  const previousExpenseTotal = previousMovements
+    .filter(esEgresoReal)
+    .reduce((sum, movement) => sum + movement.monto.toNumber(), 0);
+  const previousResult = previous
+    ? previousIncomeTotal - previousExpenseTotal
+    : null;
 
   const balances: Record<TipoCuenta, number> = {
     CAJA_DIARIA: 0,
@@ -204,11 +233,12 @@ export default async function HistorialPage({
       : movement.gasto_fijo
         ? `Fijos · ${movement.gasto_fijo.obligacion}`
         : null;
-    const kind = !movement.cuenta_origen_id
-      ? "income"
-      : movement.cuenta_destino_id
-        ? "transfer"
-        : "expense";
+    const kind =
+      !movement.cuenta_origen_id || esLiquidacionObra(movement)
+        ? "income"
+        : movement.cuenta_destino_id
+          ? "transfer"
+          : "expense";
     return {
       id: movement.id,
       date: movement.fecha.toISOString(),
@@ -223,10 +253,16 @@ export default async function HistorialPage({
   });
 
   const selectedLabel = formatearPeriodo(selected.anio, selected.mes);
-  const comparison =
+  const patrimonyComparison =
     previousPatrimony === null ? null : patrimonio - previousPatrimony;
+  const resultComparison =
+    previousResult === null ? null : result - previousResult;
   const summary = [
-    { label: "Ingresos", value: incomeTotal, tone: "text-[#00714d]" },
+    {
+      label: "Ingresos computables",
+      value: incomeTotal,
+      tone: "text-[#00714d]",
+    },
     { label: "Egresos", value: expenseTotal, tone: "text-[#93000a]" },
     {
       label: "Resultado neto",
@@ -285,11 +321,11 @@ export default async function HistorialPage({
             {money.format(patrimonio)}
           </strong>
           <p
-            className={`mt-2 text-xs font-semibold ${comparison !== null && comparison >= 0 ? "text-[#6ffbbe]" : "text-[#ffdad6]"}`}
+            className={`mt-2 text-xs font-semibold ${patrimonyComparison !== null && patrimonyComparison >= 0 ? "text-[#6ffbbe]" : "text-[#ffdad6]"}`}
           >
-            {comparison === null
+            {patrimonyComparison === null
               ? "Sin cierre anterior para comparar"
-              : `${comparison >= 0 ? "+" : ""}${money.format(comparison)} respecto de ${formatearPeriodo(previous!.anio, previous!.mes)}`}
+              : `${patrimonyComparison >= 0 ? "+" : ""}${money.format(patrimonyComparison)} respecto de ${formatearPeriodo(previous!.anio, previous!.mes)}`}
           </p>
         </section>
 
@@ -418,7 +454,7 @@ export default async function HistorialPage({
           </span>
           <p className="mt-1 text-sm font-semibold">
             {previous
-              ? `${selectedLabel} cerró ${comparison! >= 0 ? "por encima" : "por debajo"} de ${formatearPeriodo(previous.anio, previous.mes)} por ${money.format(Math.abs(comparison!))}.`
+              ? `${selectedLabel} tuvo un resultado ${resultComparison! >= 0 ? "superior" : "inferior"} al de ${formatearPeriodo(previous.anio, previous.mes)} por ${money.format(Math.abs(resultComparison!))}.`
               : "Este es el primer período disponible para comparar."}
           </p>
           <p className="mt-1 text-xs text-[#45464d]">

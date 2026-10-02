@@ -1,6 +1,7 @@
 import { EstadoObra, Prisma, TipoCobranza, TipoCuenta } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { CATEGORIA_LIQUIDACION_OBRA } from "@/lib/movimientos-estadisticas";
 
 const TIPOS_CON_PERIODO = new Set<TipoCuenta>([
   TipoCuenta.CAJA_DIARIA,
@@ -669,33 +670,50 @@ export async function cerrarPeriodo(periodoId: string) {
       }
     }
 
-    const [cobranzas, gastosFijos, gastosDiarios, ajustes] = await Promise.all([
-      tx.cobranza.aggregate({
-        where: { periodo_id: periodoId },
-        _sum: { monto: true },
-      }),
-      tx.movimiento.aggregate({
-        where: { gasto_fijo: { periodo_id: periodoId } },
-        _sum: { monto: true },
-      }),
-      // Un AJUSTE es una correccion aparte del gasto diario; no debe contarse en ambos lados del cierre de periodo.
-      tx.movimiento.aggregate({
-        where: {
-          periodo_id: periodoId,
-          cuenta_destino_id: null,
-          cuenta_origen: { tipo: TipoCuenta.CAJA_DIARIA },
-          categoria: { notIn: ["AJUSTE", "GASTO_FIJO"] },
-        },
-        _sum: { monto: true },
-      }),
-      tx.movimiento.aggregate({
-        where: { periodo_id: periodoId, categoria: "AJUSTE" },
-        _sum: { monto: true },
-      }),
-    ]);
+    const [cobranzas, liquidaciones, gastosFijos, gastosDiarios, ajustes] =
+      await Promise.all([
+        tx.cobranza.aggregate({
+          where: { periodo_id: periodoId },
+          _sum: { monto: true },
+        }),
+        tx.movimiento.aggregate({
+          where: {
+            periodo_id: periodoId,
+            OR: [
+              { categoria: CATEGORIA_LIQUIDACION_OBRA },
+              {
+                categoria: "TRANSFERENCIA",
+                concepto: { startsWith: "Liquidacion de anticipo -" },
+                cuenta_origen: { tipo: TipoCuenta.ANTICIPO },
+                cuenta_destino: { tipo: TipoCuenta.COBRANZAS },
+              },
+            ],
+          },
+          _sum: { monto: true },
+        }),
+        tx.movimiento.aggregate({
+          where: { gasto_fijo: { periodo_id: periodoId } },
+          _sum: { monto: true },
+        }),
+        // Un AJUSTE es una correccion aparte del gasto diario; no debe contarse en ambos lados del cierre de periodo.
+        tx.movimiento.aggregate({
+          where: {
+            periodo_id: periodoId,
+            cuenta_destino_id: null,
+            cuenta_origen: { tipo: TipoCuenta.CAJA_DIARIA },
+            categoria: { notIn: ["AJUSTE", "GASTO_FIJO"] },
+          },
+          _sum: { monto: true },
+        }),
+        tx.movimiento.aggregate({
+          where: { periodo_id: periodoId, categoria: "AJUSTE" },
+          _sum: { monto: true },
+        }),
+      ]);
 
     const cero = new Prisma.Decimal(0);
     const diferencia = (cobranzas._sum.monto ?? cero)
+      .plus(liquidaciones._sum.monto ?? cero)
       .minus(gastosFijos._sum.monto ?? cero)
       .minus(gastosDiarios._sum.monto ?? cero)
       .minus(ajustes._sum.monto ?? cero);
@@ -802,7 +820,7 @@ export async function cerrarObra(obraId: string, periodoId: string) {
           fecha: new Date(),
           concepto: `Liquidacion de anticipo - ${obra.cliente}`,
           monto: anticipo.saldo_actual,
-          categoria: "TRANSFERENCIA",
+          categoria: CATEGORIA_LIQUIDACION_OBRA,
         },
       });
       await recalcularCuentas(tx, [anticipo.id, cuentasCobranzas[0].id]);

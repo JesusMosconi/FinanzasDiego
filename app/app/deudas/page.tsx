@@ -1,6 +1,5 @@
 import { AppHeader } from "@/components/app-header";
-import { calcularMontoPagadoGastoFijo } from "@/lib/finanzas";
-import { prisma } from "@/lib/prisma";
+import { obtenerDeudasPeriodo } from "@/lib/deudas";
 import { formatearPeriodo, obtenerPeriodoOperativo } from "@/lib/periodos";
 
 export const dynamic = "force-dynamic";
@@ -13,26 +12,7 @@ const money = new Intl.NumberFormat("es-AR", {
 
 export default async function DeudasPage() {
   const period = await obtenerPeriodoOperativo();
-  const fixedExpenses = period
-    ? await prisma.gastoFijo.findMany({
-        where: { periodo_id: period.id, pagado: false, archivado: false },
-      })
-    : [];
-
-  const paidAmounts = await Promise.all(
-    fixedExpenses.map((expense) => calcularMontoPagadoGastoFijo(expense.id)),
-  );
-  const debts = fixedExpenses
-    .map((expense, index) => ({
-      id: expense.id,
-      group: expense.grupo,
-      name: expense.obligacion,
-      pending: Math.max(
-        expense.monto_total.toNumber() - paidAmounts[index].toNumber(),
-        0,
-      ),
-    }))
-    .sort((a, b) => b.pending - a.pending);
+  const debts = period ? await obtenerDeudasPeriodo(period.id) : [];
 
   const periodLabel = period
     ? formatearPeriodo(period.anio, period.mes)
@@ -44,11 +24,34 @@ export default async function DeudasPage() {
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))]">
         <section className="space-y-2">
-          <div className="px-0.5">
-            <h1 className="text-base font-semibold">Deudas</h1>
-            <p className="text-xs text-[#45464d]">
-              Pagos pendientes del período actual
-            </p>
+          <div className="flex items-center justify-between gap-3 px-0.5">
+            <div>
+              <h1 className="text-base font-semibold">Deudas</h1>
+              <p className="text-xs text-[#45464d]">
+                Pagos pendientes del período actual
+              </p>
+            </div>
+            {period ? (
+              <a
+                className="flex min-h-11 items-center gap-1.5 rounded-lg bg-[#e5eeff] px-3 text-xs font-semibold shadow-sm transition active:scale-95"
+                download
+                href="/api/deudas/pdf"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 3v12m-5-5 5 5 5-5M5 20h14" />
+                </svg>
+                Descargar PDF
+              </a>
+            ) : null}
           </div>
 
           {debts.length === 0 ? (
