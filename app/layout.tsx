@@ -1,17 +1,18 @@
 /* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata, Viewport } from "next";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { assertDemoDatabase } from "@/lib/demo-environment";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FinanzasDiego",
-  description: "Finanzas personales y familiares de Diego.",
-  applicationName: "FinanzasDiego",
+  title: "FinanzasApp Demo",
+  description: "Demo de gestión de finanzas personales con datos ficticios.",
+  applicationName: "FinanzasApp",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "FinanzasDiego",
+    title: "FinanzasApp",
   },
   icons: {
     icon: "/icon.png",
@@ -25,6 +26,7 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  assertDemoDatabase();
   return (
     <html lang="es" className="h-full antialiased">
       <head>

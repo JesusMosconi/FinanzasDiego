@@ -95,7 +95,7 @@ export function HistoricalActivityList({
           setQuery(event.target.value);
           setExpanded(false);
         }}
-        placeholder="Buscar por concepto, obra o cuenta..."
+        placeholder="Buscar por concepto o cuenta..."
         type="search"
         value={query}
       />

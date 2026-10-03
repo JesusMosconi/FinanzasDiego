@@ -29,7 +29,6 @@ export type SourceAccountView = {
   id: string;
   name: string;
   balance: number;
-  advance: boolean;
 };
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -48,7 +47,7 @@ const fixedGroups = [
   "Tarjetas Crédito, Créditos y Préstamos",
   "Laborales y salud",
   "Vehículos/Mantenimientos",
-  "Cuidadoras",
+  "Otros servicios",
 ] as const;
 
 export function FijosClient({
@@ -144,24 +143,17 @@ export function FijosClient({
         <section className="space-y-2 rounded-xl bg-[#dce9ff] p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <strong className="text-xs">Cajas disponibles para pagar</strong>
-            <span className="rounded-full bg-[#6cf8bb] px-2 py-0.5 text-[10px] font-bold text-[#005236]">
-              Anticipos habilitados
-            </span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {accounts.map((account) => (
               <div
-                className={`min-w-[118px] shrink-0 rounded-lg bg-white p-2 shadow-sm ${account.advance ? "border-l-2 border-amber-500" : ""}`}
+                className="min-w-[118px] shrink-0 rounded-lg bg-white p-2 shadow-sm"
                 key={account.id}
               >
                 <span className="block truncate text-[11px] text-[#45464d]">
                   {account.name}
                 </span>
-                <strong
-                  className={
-                    account.advance ? "text-sm text-amber-700" : "text-sm"
-                  }
-                >
+                <strong className="text-sm">
                   {money.format(account.balance)}
                 </strong>
               </div>
@@ -471,7 +463,7 @@ function PaymentDialog({
           </legend>
           {accounts.map((account, index) => (
             <label
-              className={`flex cursor-pointer items-center justify-between rounded-xl bg-white p-3 shadow-sm ${account.advance ? "border-l-2 border-amber-500" : ""}`}
+              className="flex cursor-pointer items-center justify-between rounded-xl bg-white p-3 shadow-sm"
               key={account.id}
             >
               <span className="flex items-center gap-2">

@@ -120,7 +120,7 @@ export function DeudasPdf({ data }: { data: DeudasPdfData }) {
   const total = data.debts.reduce((sum, debt) => sum + debt.pending, 0);
 
   return (
-    <Document title={`Deudas - ${data.periodLabel}`} author="FinanzasDiego">
+    <Document title={`Deudas - ${data.periodLabel}`} author="FinanzasApp">
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>FINANZASDIEGO</Text>

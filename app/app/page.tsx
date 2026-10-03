@@ -1,4 +1,4 @@
-import { EstadoObra, TipoCuenta } from "@prisma/client";
+import { TipoCuenta } from "@prisma/client";
 import Link from "next/link";
 
 import { AppHeader } from "@/components/app-header";
@@ -82,11 +82,11 @@ function Icon({
   );
 }
 
-function accountName(tipo: TipoCuenta, cliente?: string | null) {
+function accountName(tipo: TipoCuenta) {
   if (tipo === TipoCuenta.CAJA_DIARIA) return "Diarios";
   if (tipo === TipoCuenta.RESIDUALES) return "Residuales";
   if (tipo === TipoCuenta.COBRANZAS) return "Cobranzas";
-  return cliente ? `Anticipo · ${cliente}` : "Anticipo";
+  return "Otra cuenta";
 }
 
 function movementTitle(
@@ -177,19 +177,12 @@ export default async function AppPage() {
   const collectionAccounts = accounts.filter(
     (account) => account.tipo === TipoCuenta.COBRANZAS,
   );
-  const advanceAccounts = accounts.filter(
-    (account) =>
-      account.tipo === TipoCuenta.ANTICIPO &&
-      account.obra?.estado === EstadoObra.ACTIVA,
-  );
   const sumBalances = (items: typeof accounts) =>
     items.reduce((sum, account) => sum + account.saldo_actual.toNumber(), 0);
   const dailyBalance = sumBalances(dailyAccounts);
   const residualBalance = sumBalances(residualAccounts);
-  const advanceBalance = sumBalances(advanceAccounts);
   const collectionBalance = sumBalances(collectionAccounts);
-  const netWorth =
-    dailyBalance + residualBalance + advanceBalance + collectionBalance;
+  const netWorth = dailyBalance + residualBalance + collectionBalance;
   const previousBalance =
     previousPeriod?.periodo_cuentas.reduce(
       (sum, item) => sum + (item.saldo_final?.toNumber() ?? 0),
@@ -229,23 +222,16 @@ export default async function AppPage() {
   const allocatedTypes = [
     dailyAccounts,
     residualAccounts,
-    advanceAccounts,
     collectionAccounts,
   ].filter((group) => group.length > 0).length;
 
   const activity = [
     ...periodMovements.map((movement) => {
       const origin = movement.cuenta_origen
-        ? accountName(
-            movement.cuenta_origen.tipo,
-            movement.cuenta_origen.obra?.cliente,
-          )
+        ? accountName(movement.cuenta_origen.tipo)
         : "Ingreso externo";
       const destination = movement.cuenta_destino
-        ? accountName(
-            movement.cuenta_destino.tipo,
-            movement.cuenta_destino.obra?.cliente,
-          )
+        ? accountName(movement.cuenta_destino.tipo)
         : movement.gasto_fijo
           ? `Fijos · ${movement.gasto_fijo.obligacion}`
           : null;
@@ -300,20 +286,12 @@ export default async function AppPage() {
       description: "Ahorro resguardado y excedentes seguros",
     },
     {
-      label: "Caja 3 · Anticipos",
-      amount: advanceBalance,
-      color: "bg-[#188ace]",
-      badge: `${advanceAccounts.length} ${advanceAccounts.length === 1 ? "obra" : "obras"}`,
-      badgeClass: "bg-[#cce5ff] text-[#004b73]",
-      description: "Fondos asignados a obras activas",
-    },
-    {
-      label: "Caja 4 · Cobranzas",
+      label: "Caja 3 · Cobranzas",
       amount: collectionBalance,
       color: "bg-[#131b2e]",
       badge: "Por repartir",
       badgeClass: "bg-[#6cf8bb] text-[#005236]",
-      description: "Mano de obra y aportes listos para distribuir",
+      description: "Ingresos y aportes listos para distribuir",
     },
   ];
 
@@ -353,7 +331,7 @@ export default async function AppPage() {
                 : `${change >= 0 ? "+" : ""}${money.format(change)} vs. mes anterior`}
             </span>
             <span className="text-[#bec6e0]">
-              {allocatedTypes}/4 cajas asignadas
+              {allocatedTypes}/3 cajas asignadas
             </span>
           </div>
         </section>
@@ -391,7 +369,7 @@ export default async function AppPage() {
           <div className="flex items-center justify-between px-0.5">
             <h1 className="text-base font-semibold">Cajas y asignaciones</h1>
             <span className="text-[11px] font-bold text-[#45464d]">
-              {allocatedTypes === 4
+              {allocatedTypes === 3
                 ? "Todas activas"
                 : `${allocatedTypes} tipos activos`}
             </span>

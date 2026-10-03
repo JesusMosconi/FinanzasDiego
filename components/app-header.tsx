@@ -17,7 +17,10 @@ export function AppHeader({ periodLabel }: { periodLabel: string }) {
             width={32}
           />
           <span className="hidden text-sm font-bold tracking-tight min-[390px]:inline">
-            FinanzasDiego
+            FinanzasApp
+          </span>
+          <span className="rounded-full bg-[#dce9ff] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#005236]">
+            Demo
           </span>
         </div>
         <div className="flex min-h-11 items-center gap-2 rounded-full bg-[#eff4ff] px-3 text-xs font-semibold">

@@ -17,7 +17,7 @@ export default async function LoginPage() {
       <section className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-[0_12px_40px_rgba(11,28,48,0.10)]">
         <div className="mb-6 text-center">
           <Image
-            alt="Logo de FinanzasDiego"
+            alt="Logo de FinanzasApp"
             className="mx-auto mb-3 h-16 w-16 rounded-full"
             height={64}
             priority
@@ -25,11 +25,14 @@ export default async function LoginPage() {
             width={64}
           />
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#00714d]">
-            FinanzasDiego
+            FinanzasApp
           </p>
           <h1 className="mt-1 text-2xl font-bold">Bienvenido</h1>
           <p className="mt-1 text-sm text-[#45464d]">
-            Ingresá tu PIN para acceder a tus finanzas.
+            Explorá la demo con datos de ejemplo.
+          </p>
+          <p className="mx-auto mt-4 w-fit rounded-full bg-[#dce9ff] px-4 py-2 text-sm font-bold text-[#005236]">
+            PIN demo: 1234
           </p>
         </div>
         <LoginForm />

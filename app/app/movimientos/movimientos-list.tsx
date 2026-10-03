@@ -3,7 +3,6 @@
 import { TipoCuenta } from "@prisma/client";
 import { useMemo, useState } from "react";
 
-
 export type ActivityItem = {
   id: string;
   date: string;
@@ -17,7 +16,7 @@ export type ActivityItem = {
   adjustment: boolean;
 };
 
-type BoxTab = "all" | "daily" | "residual" | "collections" | "advances";
+type BoxTab = "all" | "daily" | "residual" | "collections";
 type KindFilter = "all" | ActivityItem["kind"];
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -45,7 +44,6 @@ const tabTypes: Partial<Record<BoxTab, TipoCuenta>> = {
   daily: TipoCuenta.CAJA_DIARIA,
   residual: TipoCuenta.RESIDUALES,
   collections: TipoCuenta.COBRANZAS,
-  advances: TipoCuenta.ANTICIPO,
 };
 
 function dateKey(value: string) {
@@ -159,7 +157,7 @@ export function MovimientosList({
             <input
               className="h-11 w-full rounded-xl bg-[#eff4ff] pr-10 pl-10 text-sm outline-none transition focus:bg-[#e5eeff]"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por concepto, obra o cuenta..."
+              placeholder="Buscar por concepto o cuenta..."
               type="search"
               value={query}
             />
@@ -197,7 +195,6 @@ export function MovimientosList({
                 ["daily", "Diarios"],
                 ["residual", "Residuales"],
                 ["collections", "Cobranzas"],
-                ["advances", "Anticipos"],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -281,7 +278,6 @@ export function MovimientosList({
           )}
         </section>
       </main>
-
     </>
   );
 }

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FinanzasApp">
+  <rect width="512" height="512" rx="120" fill="#0b1c30"/>
+  <circle cx="256" cy="256" r="178" fill="#123c3b"/>
+  <path d="M135 323h242" fill="none" stroke="#dce9ff" stroke-linecap="round" stroke-width="24"/>
+  <rect x="152" y="258" width="45" height="63" rx="12" fill="#6cf8bb"/>
+  <rect x="234" y="213" width="45" height="108" rx="12" fill="#6cf8bb"/>
+  <rect x="316" y="164" width="45" height="157" rx="12" fill="#6cf8bb"/>
+  <path d="m151 230 108-75 100-50" fill="none" stroke="#dce9ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>
+</svg>

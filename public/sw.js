@@ -1,4 +1,4 @@
-const CACHE_NAME = "finanzas-diego-static-v1";
+const CACHE_NAME = "finanzasapp-demo-static-v1";
 const STATIC_ASSETS = [
   "/icon.png",
   "/apple-icon.png",
@@ -23,7 +23,12 @@ self.addEventListener("activate", (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames
-            .filter((cacheName) => cacheName.startsWith("finanzas-diego-") && cacheName !== CACHE_NAME)
+            .filter(
+              (cacheName) =>
+                cacheName.startsWith("finanzas-diego-") ||
+                cacheName.startsWith("finanzasapp-demo-"),
+            )
+            .filter((cacheName) => cacheName !== CACHE_NAME)
             .map((cacheName) => caches.delete(cacheName)),
         ),
       )
@@ -37,11 +42,16 @@ self.addEventListener("fetch", (event) => {
   }
 
   const requestUrl = new URL(event.request.url);
-  if (requestUrl.origin !== self.location.origin || !STATIC_ASSETS.includes(requestUrl.pathname)) {
+  if (
+    requestUrl.origin !== self.location.origin ||
+    !STATIC_ASSETS.includes(requestUrl.pathname)
+  ) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => cachedResponse ?? fetch(event.request)),
+    caches
+      .match(event.request)
+      .then((cachedResponse) => cachedResponse ?? fetch(event.request)),
   );
 });

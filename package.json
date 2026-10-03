@@ -10,7 +10,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postinstall": "prisma generate",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "demo:dev": "node scripts/demo-next.mjs dev",
+    "demo:build": "node scripts/demo-next.mjs build",
+    "demo:start": "node scripts/demo-next.mjs start",
+    "demo:seed": "node --env-file=.env.demo.local --import tsx prisma/demo-seed.ts",
+    "demo:inspect": "node --env-file=.env.demo.local --import tsx prisma/demo-inspect.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

@@ -24,7 +24,6 @@ export type ModalAccount = {
 type ModalOptions = {
   periodId: string | null;
   accounts: ModalAccount[];
-  works: { id: string; name: string }[];
 };
 
 const ModalContext = createContext<(() => void) | null>(null);
@@ -88,7 +87,7 @@ function NuevoMovimientoDialog({
   );
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
-  const [collectionType, setCollectionType] = useState("MANO_OBRA");
+  const [collectionType, setCollectionType] = useState("RESIDUAL");
   const [clientError, setClientError] = useState("");
   const [state, action, pending] = useActionState(
     guardarNuevoRegistro,
@@ -240,22 +239,18 @@ function NuevoMovimientoDialog({
         {operation === "ingreso" && destination?.type === "COBRANZAS" ? (
           <div className="space-y-3 rounded-xl bg-[#dce9ff] p-3">
             <label className="block text-xs font-semibold">
-              Tipo de cobranza
+              Tipo de ingreso
               <SelectDialog
-                label="Tipo de cobranza"
+                label="Tipo de ingreso"
                 name="tipoCobranza"
                 onChange={setCollectionType}
                 options={[
-                  { value: "MANO_OBRA", label: "Mano de obra" },
-                  { value: "RESIDUAL", label: "Residual" },
-                  { value: "FAMILIA", label: "Aporte familiar" },
+                  { value: "RESIDUAL", label: "Ingreso general" },
+                  { value: "FAMILIA", label: "Aporte" },
                 ]}
                 value={collectionType}
               />
             </label>
-            {collectionType === "MANO_OBRA" ? (
-              <WorkSelect works={options.works} />
-            ) : null}
           </div>
         ) : null}
 
@@ -314,9 +309,7 @@ function CategoryAccountSelect({
     ["CAJA_DIARIA", "Diarios"],
     ["RESIDUALES", "Residuales"],
     ["COBRANZAS", "Cobranzas"],
-    ["ANTICIPO", "Anticipo"],
   ] as const;
-  const advances = accounts.filter((account) => account.type === "ANTICIPO");
 
   return (
     <div className="space-y-2">
@@ -327,9 +320,7 @@ function CategoryAccountSelect({
           onChange={(type) => {
             setCategory(type);
             onChange(
-              type === "ANTICIPO"
-                ? ""
-                : (accounts.find((account) => account.type === type)?.id ?? ""),
+              accounts.find((account) => account.type === type)?.id ?? "",
             );
           }}
           options={categories.map(([type, categoryLabel]) => ({
@@ -341,42 +332,7 @@ function CategoryAccountSelect({
           value={category}
         />
       </label>
-      {category === "ANTICIPO" ? (
-        <label className="block text-xs font-semibold">
-          Anticipo activo
-          <SelectDialog
-            label="Anticipo activo"
-            onChange={onChange}
-            options={advances.map((account) => ({
-              value: account.id,
-              label: account.name.replace(/^Anticipo · /, ""),
-            }))}
-            placeholder="Seleccionar anticipo"
-            value={value}
-          />
-        </label>
-      ) : null}
       <input name={name} type="hidden" value={value} />
     </div>
-  );
-}
-
-function WorkSelect({ works }: { works: { id: string; name: string }[] }) {
-  const [value, setValue] = useState("");
-
-  return (
-    <label className="block text-xs font-semibold">
-      Obra asociada (opcional)
-      <SelectDialog
-        label="Obra asociada"
-        name="obraId"
-        onChange={setValue}
-        options={[
-          { value: "", label: "Sin obra asociada" },
-          ...works.map((work) => ({ value: work.id, label: work.name })),
-        ]}
-        value={value}
-      />
-    </label>
   );
 }

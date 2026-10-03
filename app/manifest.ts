@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "FinanzasDiego",
-    short_name: "Finanzas",
-    description: "Finanzas personales y familiares de Diego.",
+    name: "FinanzasApp Demo",
+    short_name: "FinanzasApp",
+    description: "Demo de gestión de finanzas personales con datos ficticios.",
     start_url: "/app",
     scope: "/",
     display: "standalone",

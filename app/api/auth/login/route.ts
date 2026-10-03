@@ -6,13 +6,22 @@ import {
   SESSION_COOKIE_NAME,
   SESSION_DURATION_SECONDS,
 } from "@/lib/auth";
+import { assertDemoDatabase } from "@/lib/demo-environment";
 
 export async function POST(request: Request) {
+  assertDemoDatabase();
   const pinHash = process.env.PIN_HASH;
 
   if (!pinHash || !process.env.JWT_SECRET) {
     return NextResponse.json(
       { error: "La autenticacion no esta configurada." },
+      { status: 500 },
+    );
+  }
+
+  if (!(await compare("1234", pinHash))) {
+    return NextResponse.json(
+      { error: "El PIN de demostración no está configurado." },
       { status: 500 },
     );
   }

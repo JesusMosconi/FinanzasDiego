@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { assertDemoDatabase } from "@/lib/demo-environment";
+
+assertDemoDatabase();
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

@@ -1,4 +1,4 @@
-import { EstadoObra, TipoCuenta } from "@prisma/client";
+import { TipoCuenta } from "@prisma/client";
 
 import { AppHeader } from "@/components/app-header";
 import { calcularMontoPagadoGastoFijo } from "@/lib/finanzas";
@@ -13,11 +13,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function accountName(tipo: TipoCuenta, cliente?: string | null) {
+function accountName(tipo: TipoCuenta) {
   if (tipo === TipoCuenta.CAJA_DIARIA) return "Diarios";
   if (tipo === TipoCuenta.RESIDUALES) return "Residuales";
   if (tipo === TipoCuenta.COBRANZAS) return "Cobranzas";
-  return cliente ? `Anticipo · ${cliente}` : "Anticipo";
+  return "Otra cuenta";
 }
 
 export default async function FijosPage() {
@@ -43,18 +43,13 @@ export default async function FijosPage() {
       : [],
     prisma.cuenta.findMany({
       where: {
-        OR: [
-          {
-            tipo: {
-              in: [
-                TipoCuenta.CAJA_DIARIA,
-                TipoCuenta.RESIDUALES,
-                TipoCuenta.COBRANZAS,
-              ],
-            },
-          },
-          { tipo: TipoCuenta.ANTICIPO, obra: { estado: EstadoObra.ACTIVA } },
-        ],
+        tipo: {
+          in: [
+            TipoCuenta.CAJA_DIARIA,
+            TipoCuenta.RESIDUALES,
+            TipoCuenta.COBRANZAS,
+          ],
+        },
       },
       include: { obra: { select: { cliente: true } } },
       orderBy: { tipo: "asc" },
@@ -79,10 +74,7 @@ export default async function FijosPage() {
             amount: lastPayment.monto.toNumber(),
             date: lastPayment.fecha.toISOString(),
             source: lastPayment.cuenta_origen
-              ? accountName(
-                  lastPayment.cuenta_origen.tipo,
-                  lastPayment.cuenta_origen.obra?.cliente,
-                )
+              ? accountName(lastPayment.cuenta_origen.tipo)
               : "Ingreso externo",
           }
         : null,
@@ -91,9 +83,8 @@ export default async function FijosPage() {
 
   const accounts: SourceAccountView[] = sourceAccounts.map((account) => ({
     id: account.id,
-    name: accountName(account.tipo, account.obra?.cliente),
+    name: accountName(account.tipo),
     balance: account.saldo_actual.toNumber(),
-    advance: account.tipo === TipoCuenta.ANTICIPO,
   }));
 
   const periodLabel = period

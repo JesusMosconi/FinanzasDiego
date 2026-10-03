@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
-const INSTALL_PREFERENCE_KEY = "finanzas-diego-install-prompt";
+const INSTALL_PREFERENCE_KEY = "finanzas-app-demo-install-prompt";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -17,12 +17,14 @@ function isStandalone() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
     ("standalone" in window.navigator &&
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true)
+      (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+        true)
   );
 }
 
 export function InstallAppBanner() {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
@@ -44,7 +46,10 @@ export function InstallAppBanner() {
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
@@ -86,7 +91,7 @@ export function InstallAppBanner() {
           width="48"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">Instalar FinanzasDiego</p>
+          <p className="text-sm font-bold">Instalar FinanzasApp</p>
           <p className="mt-1 text-xs leading-5 text-white/70">
             Accedé desde tu pantalla de inicio como una app.
           </p>
@@ -97,7 +102,14 @@ export function InstallAppBanner() {
           onClick={dismiss}
           type="button"
         >
-          <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <svg
+            aria-hidden="true"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
             <path d="m6 6 12 12M18 6 6 18" />
           </svg>
         </button>

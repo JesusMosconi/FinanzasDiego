@@ -27,11 +27,11 @@ const compactMoney = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-function accountLabel(tipo: TipoCuenta, cliente?: string | null) {
+function accountLabel(tipo: TipoCuenta) {
   if (tipo === TipoCuenta.CAJA_DIARIA) return "Diarios";
   if (tipo === TipoCuenta.RESIDUALES) return "Residuales";
   if (tipo === TipoCuenta.COBRANZAS) return "Cobranzas";
-  return cliente ? `Anticipo · ${cliente}` : "Anticipo";
+  return "Otra cuenta";
 }
 
 function periodWhere(anio: number, mes: number) {
@@ -220,16 +220,10 @@ export default async function HistorialPage({
 
   const activity: HistoricalActivity[] = movements.map((movement) => {
     const origin = movement.cuenta_origen
-      ? accountLabel(
-          movement.cuenta_origen.tipo,
-          movement.cuenta_origen.obra?.cliente,
-        )
+      ? accountLabel(movement.cuenta_origen.tipo)
       : "Ingreso externo";
     const destination = movement.cuenta_destino
-      ? accountLabel(
-          movement.cuenta_destino.tipo,
-          movement.cuenta_destino.obra?.cliente,
-        )
+      ? accountLabel(movement.cuenta_destino.tipo)
       : movement.gasto_fijo
         ? `Fijos · ${movement.gasto_fijo.obligacion}`
         : null;
@@ -337,7 +331,6 @@ export default async function HistorialPage({
                 ["Diarios", balances.CAJA_DIARIA],
                 ["Residuales", balances.RESIDUALES],
                 ["Cobranzas", balances.COBRANZAS],
-                ["Anticipos", balances.ANTICIPO],
               ] as const
             ).map(([label, value]) => (
               <article

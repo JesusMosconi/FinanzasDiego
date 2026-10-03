@@ -8,11 +8,11 @@ import { MovimientosList, type ActivityItem } from "./movimientos-list";
 
 export const dynamic = "force-dynamic";
 
-function accountLabel(tipo: TipoCuenta, cliente?: string | null) {
+function accountLabel(tipo: TipoCuenta) {
   if (tipo === TipoCuenta.CAJA_DIARIA) return "Diarios";
   if (tipo === TipoCuenta.RESIDUALES) return "Residuales";
   if (tipo === TipoCuenta.COBRANZAS) return "Cobranzas";
-  return cliente ? `Anticipo · ${cliente}` : "Anticipo";
+  return "Otra cuenta";
 }
 
 function transferTitle(origin: TipoCuenta, destination: TipoCuenta) {
@@ -45,16 +45,10 @@ export default async function MovimientosPage() {
   const items: ActivityItem[] = [
     ...movements.map((movement) => {
       const origin = movement.cuenta_origen
-        ? accountLabel(
-            movement.cuenta_origen.tipo,
-            movement.cuenta_origen.obra?.cliente,
-          )
+        ? accountLabel(movement.cuenta_origen.tipo)
         : "Ingreso externo";
       const destination = movement.cuenta_destino
-        ? accountLabel(
-            movement.cuenta_destino.tipo,
-            movement.cuenta_destino.obra?.cliente,
-          )
+        ? accountLabel(movement.cuenta_destino.tipo)
         : null;
       const fixedPayment = Boolean(movement.gasto_fijo);
       const income = !movement.cuenta_origen;
